@@ -33,7 +33,22 @@ export function buildApp({
   aiTimeoutMs = 8000,
   logger = false,
 }: AppOptions): FastifyInstance {
-  const app = Fastify({ logger });
+  const app = Fastify({
+    // Defense in depth: even if request/response logging grows, credentials never reach the log.
+    logger: logger
+      ? {
+          redact: {
+            paths: [
+              'req.headers.authorization',
+              'req.headers["x-api-key"]',
+              'req.headers.cookie',
+              'res.headers["set-cookie"]',
+            ],
+            censor: '[REDACTED]',
+          },
+        }
+      : false,
+  });
   registerErrorHandling(app);
   registerLoopbackCors(app);
 
