@@ -1,0 +1,30 @@
+{
+  "name": "@studypath/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.52",
+    "fastify": "^5.12.8"
+  }
+}
