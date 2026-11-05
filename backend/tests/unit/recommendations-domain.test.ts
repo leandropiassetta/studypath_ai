@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildProgress,
+  latestAnswerPerQuestion,
   overallStatus,
   selectReviewTopics,
   selectSuggestions,
   summarizeByTopic,
   type AnswerFact,
+  type AttemptSummary,
   type CandidateQuestion,
+  type HistoricAnswer,
 } from '../../src/modules/recommendations/domain.js';
 
 const facts = (topicId: string, name: string, correct: number, wrong: number): AnswerFact[] => [
@@ -112,5 +116,88 @@ describe('overallStatus (RN-09)', () => {
     expect(overallStatus(2, 0)).toBe('ON_TRACK');
     expect(overallStatus(2, 1)).toBe('NEEDS_REVIEW'); // a LOW topic alone is enough
     expect(overallStatus(1, 1)).toBe('NEEDS_REVIEW');
+  });
+});
+
+const ans = (
+  attemptId: string,
+  questionId: string,
+  isCorrect: boolean,
+  topic: 'E' | 'G' = 'E',
+): HistoricAnswer => ({
+  attemptId,
+  questionId,
+  isCorrect,
+  topicId: topic,
+  topicName: topic === 'E' ? 'Equações' : 'Geometria',
+});
+
+describe('latestAnswerPerQuestion (current state)', () => {
+  it('keeps only the most recent answer of each question', () => {
+    // a3 is the newest attempt. q1: wrong, wrong, right -> right now. q2: right, then wrong -> wrong now.
+    const answers = [
+      ans('a1', 'q1', false),
+      ans('a2', 'q1', false),
+      ans('a3', 'q1', true),
+      ans('a1', 'q2', true),
+      ans('a3', 'q2', false),
+    ];
+    const current = latestAnswerPerQuestion(answers, ['a3', 'a2', 'a1']);
+    expect(current).toHaveLength(2);
+    expect(current.find((a) => a.questionId === 'q1')?.isCorrect).toBe(true);
+    expect(current.find((a) => a.questionId === 'q2')?.isCorrect).toBe(false);
+  });
+
+  it('does not depend on the order answers are listed in', () => {
+    const answers = [ans('a3', 'q1', true), ans('a1', 'q1', false), ans('a2', 'q1', false)];
+    for (const input of [answers, [...answers].reverse()]) {
+      expect(latestAnswerPerQuestion(input, ['a3', 'a2', 'a1'])[0]?.isCorrect).toBe(true);
+    }
+  });
+
+  it('ignores answers from attempts outside the window', () => {
+    expect(latestAnswerPerQuestion([ans('old', 'q1', true)], ['a1'])).toEqual([]);
+  });
+
+  it('after fixing the mistakes a topic stops needing review (the user scenario)', () => {
+    // 10 wrong attempts on the same 4 questions, then 1 right attempt: aggregate would be ~9%.
+    const qs = ['q1', 'q2', 'q3', 'q4'];
+    const ids = ['new', ...Array.from({ length: 10 }, (_, i) => `old${i}`)];
+    const answers = [
+      ...qs.map((q) => ans('new', q, true)),
+      ...ids.slice(1).flatMap((id) => qs.map((q) => ans(id, q, false))),
+    ];
+    expect(selectReviewTopics(latestAnswerPerQuestion(answers, ids))).toEqual([]);
+    expect(selectReviewTopics(answers)).toHaveLength(1); // the old aggregate would still flag it
+  });
+});
+
+describe('buildProgress', () => {
+  const attempt = (id: string, hour: number, scorePct: number): AttemptSummary => ({
+    id,
+    submittedAt: new Date(Date.UTC(2026, 0, 1, hour)),
+    scorePct,
+  });
+
+  it('returns attempts oldest first with per-topic accuracy', () => {
+    const attempts = [attempt('a2', 2, 75), attempt('a1', 1, 25)]; // newest first
+    const answers = [
+      ...[true, false, false, false].map((c, i) => ans('a1', `e${i}`, c, 'E')),
+      ...[true, true, true, true].map((c, i) => ans('a1', `g${i}`, c, 'G')),
+      ...[true, true, true, false].map((c, i) => ans('a2', `e${i}`, c, 'E')),
+      ...[true, true, false, false].map((c, i) => ans('a2', `g${i}`, c, 'G')),
+    ];
+    const progress = buildProgress(answers, attempts);
+    expect(progress.map((p) => p.attemptId)).toEqual(['a1', 'a2']);
+    expect(progress[0]?.topics).toEqual([
+      { topicId: 'E', topicName: 'Equações', correctCount: 1, totalCount: 4, accuracyPct: 25 },
+      { topicId: 'G', topicName: 'Geometria', correctCount: 4, totalCount: 4, accuracyPct: 100 },
+    ]);
+    expect(progress[1]?.topics.map((t) => t.accuracyPct)).toEqual([75, 50]);
+    expect(progress.map((p) => p.scorePct)).toEqual([25, 75]);
+  });
+
+  it('is empty without attempts', () => {
+    expect(buildProgress([], [])).toEqual([]);
   });
 });

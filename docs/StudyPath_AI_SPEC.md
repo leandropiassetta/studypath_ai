@@ -93,7 +93,7 @@ Todas as chaves primárias usam UUID. Datas usam `timestamptz` em UTC. Criar ín
 
 **RN-05. Idempotência:** o cliente gera um `requestId` UUID por intenção de envio e reutiliza esse ID ao repetir o envio após timeout. Persistir hash SHA-256 do payload canônico (quizId e lista de respostas ordenadas por questionId). Mesmo estudante + `requestId` + mesmo payload retorna a tentativa já criada (HTTP 200). Mesmo estudante + `requestId` + payload diferente retorna HTTP 409. Primeira submissão retorna HTTP 201. Tratar também corrida concorrente por índice único e releitura da tentativa vencedora.
 
-**RN-06. Histórico para recomendação:** agrupar respostas das **cinco tentativas mais recentes** do aluno, de qualquer simulado, por tema. Tentativas repetidas com IDs diferentes são tentativas distintas.
+**RN-06. Histórico para recomendação:** considerar as respostas das **cinco tentativas mais recentes** do aluno, de qualquer simulado. O desempenho por tema usa o **estado atual**: de cada questão conta apenas a **última** resposta (uma questão errada antes e certa depois conta como certa). `answeredCount` é o número de questões distintas respondidas no tema. Tentativas repetidas com IDs diferentes são tentativas distintas. A resposta também traz `progress`: as tentativas dessa janela, da mais antiga para a mais recente, com nota e acerto por tema, para mostrar a evolução. *(Revisão pós-T11: antes, as respostas das tentativas eram somadas, e erros antigos de questões repetidas pesavam mesmo depois de corrigidos.)*
 
 **RN-07. Prioridade:** somente temas com `answeredCount >= 2` e pelo menos um erro são recomendados. Com `accuracy = correctCount / answeredCount < 0.60` a prioridade é `HIGH`; com `0.60 <= accuracy < 1.00` é `LOW` (revisão opcional). Temas `HIGH` vêm antes dos `LOW`; dentro de cada prioridade, ordenar por taxa de acerto crescente, quantidade de respostas decrescente e nome do tema crescente. Regra heurística de MVP, não diagnóstico pedagógico validado. *(Revisão pós-T09: a faixa `LOW` foi acrescentada para que quem erra algumas questões sem cair abaixo de 60% não fique sem próximo passo.)*
 
@@ -189,7 +189,7 @@ Body ilustrativo abreviado: a requisição válida deve responder às 8 questõe
 
 ### `GET /api/v1/students/:studentId/recommendations` (P0)
 
-**200 com dificuldades:**
+**200 com dificuldades** (`progress` lista as tentativas avaliadas, da mais antiga para a mais recente, com `attemptId`, `submittedAt`, `scorePct` e `topics[{topicId, topicName, correctCount, totalCount, accuracyPct}]`; omitido abaixo por brevidade):
 
 ```json
 {

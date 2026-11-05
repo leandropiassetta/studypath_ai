@@ -18,6 +18,23 @@ export const RecommendationsResponse = Type.Object({
     Type.Literal('NEEDS_REVIEW'),
   ]),
   evaluatedAttempts: Type.Integer(),
+  // Oldest to newest, same window as the evaluation: lets the client show the trajectory.
+  progress: Type.Array(
+    Type.Object({
+      attemptId: Type.String(),
+      submittedAt: Type.String(),
+      scorePct: Type.Number(),
+      topics: Type.Array(
+        Type.Object({
+          topicId: Type.String(),
+          topicName: Type.String(),
+          correctCount: Type.Integer(),
+          totalCount: Type.Integer(),
+          accuracyPct: Type.Number(),
+        }),
+      ),
+    }),
+  ),
   topics: Type.Array(
     Type.Object({
       topicId: Type.String(),

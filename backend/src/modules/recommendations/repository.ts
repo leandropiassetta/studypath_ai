@@ -1,6 +1,11 @@
 import type { DataSource } from 'typeorm';
 import type { QuestionOption } from '../../database/entities/index.js';
-import { RECENT_ATTEMPTS_WINDOW, type AnswerFact, type Difficulty } from './domain.js';
+import {
+  RECENT_ATTEMPTS_WINDOW,
+  type AttemptSummary,
+  type Difficulty,
+  type HistoricAnswer,
+} from './domain.js';
 
 export interface UnansweredQuestion {
   id: string;
@@ -20,19 +25,28 @@ export class RecommendationRepository {
       .then((r) => r.length > 0);
   }
 
-  /** RN-06: answers of the student's most recent attempts, from any quiz. */
-  async recentHistory(studentId: string): Promise<{ attempts: number; facts: AnswerFact[] }> {
-    const attempts = await this.ds.query<{ id: string }[]>(
-      `SELECT id FROM attempts WHERE student_id = $1
+  /** RN-06: the student's most recent attempts (newest first) and all their answers. */
+  async recentHistory(studentId: string): Promise<{
+    attempts: AttemptSummary[];
+    answers: HistoricAnswer[];
+  }> {
+    const attempts = await this.ds.query<{ id: string; submitted_at: Date; score_pct: string }[]>(
+      `SELECT id, submitted_at, score_pct FROM attempts WHERE student_id = $1
        ORDER BY submitted_at DESC, id DESC LIMIT $2`,
       [studentId, RECENT_ATTEMPTS_WINDOW],
     );
-    if (attempts.length === 0) return { attempts: 0, facts: [] };
+    if (attempts.length === 0) return { attempts: [], answers: [] };
 
     const rows = await this.ds.query<
-      { topic_id: string; topic_name: string; is_correct: boolean }[]
+      {
+        attempt_id: string;
+        question_id: string;
+        topic_id: string;
+        topic_name: string;
+        is_correct: boolean;
+      }[]
     >(
-      `SELECT t.id AS topic_id, t.name AS topic_name, aa.is_correct
+      `SELECT aa.attempt_id, aa.question_id, t.id AS topic_id, t.name AS topic_name, aa.is_correct
        FROM attempt_answers aa
        JOIN questions q ON q.id = aa.question_id
        JOIN topics t ON t.id = q.topic_id
@@ -40,8 +54,14 @@ export class RecommendationRepository {
       [attempts.map((a) => a.id)],
     );
     return {
-      attempts: attempts.length,
-      facts: rows.map((r) => ({
+      attempts: attempts.map((a) => ({
+        id: a.id,
+        submittedAt: a.submitted_at,
+        scorePct: Number(a.score_pct),
+      })),
+      answers: rows.map((r) => ({
+        attemptId: r.attempt_id,
+        questionId: r.question_id,
         topicId: r.topic_id,
         topicName: r.topic_name,
         isCorrect: r.is_correct,

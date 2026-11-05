@@ -57,6 +57,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       studentId: DEMO_STUDENT_ID,
       status: 'NO_HISTORY',
       evaluatedAttempts: 0,
+      progress: [],
       topics: [],
     });
   });
@@ -153,6 +154,42 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       answeredCount: 7,
     });
     expect(topic.message).toEqual(expect.any(String));
+  });
+
+  it('priority follows the CURRENT state: wrong answers that were later fixed stop counting', async () => {
+    for (let i = 0; i < 4; i += 1) await submit(ALL_WRONG); // same questions missed 4 times
+    expect((await recs()).json().status).toBe('NEEDS_REVIEW');
+
+    await submit(CORRECT); // now every question is answered correctly
+    const out = (await recs()).json();
+    // A plain aggregate would be 8/40 (20%) and flag both topics as HIGH.
+    expect(out.status).toBe('ON_TRACK');
+    expect(out.topics).toEqual([]);
+    expect(out.evaluatedAttempts).toBe(5);
+  });
+
+  it('a question answered correctly and then wrongly counts as wrong now', async () => {
+    await submit(CORRECT);
+    await submit(ALL_WRONG);
+    const out = (await recs()).json();
+    expect(out.status).toBe('NEEDS_REVIEW');
+    expect(out.topics.map((t: { priority: string }) => t.priority)).toEqual(['HIGH', 'HIGH']);
+    expect(out.topics[0]).toMatchObject({ correctCount: 0, answeredCount: 4 }); // distinct questions
+  });
+
+  it('exposes the progress trajectory, oldest attempt first, with per-topic accuracy', async () => {
+    await submit(ALL_WRONG); // 0%
+    await submit(EQ_1_OF_4); // 50%: Equações 1/4, Geometria 3/4
+    await submit(CORRECT); // 100%
+    const { progress } = (await recs()).json();
+    expect(progress.map((p: { scorePct: number }) => p.scorePct)).toEqual([0, 50, 100]);
+    const equacoes = progress.map(
+      (p: { topics: { topicName: string; accuracyPct: number }[] }) =>
+        p.topics.find((t) => t.topicName === 'Equações')?.accuracyPct,
+    );
+    expect(equacoes).toEqual([0, 25, 100]);
+    const dates = progress.map((p: { submittedAt: string }) => Date.parse(p.submittedAt));
+    expect([...dates].sort((a, b) => a - b)).toEqual(dates);
   });
 
   it('only evaluates the 5 most recent attempts (RN-06)', async () => {

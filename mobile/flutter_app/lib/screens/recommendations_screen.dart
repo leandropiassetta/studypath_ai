@@ -4,6 +4,7 @@ import '../models/recommendations.dart';
 import '../services/api_client.dart';
 import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
+import '../widgets/progress_section.dart';
 import '../widgets/question_card.dart';
 import 'result_screen.dart' show formatPct;
 
@@ -67,22 +68,29 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           child: Text('Faça um simulado para receber recomendações.'),
         );
       case 'ON_TRACK':
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Excelente! Você acertou tudo nos assuntos avaliados.',
-              textAlign: TextAlign.center,
+        return ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'Excelente! Todas as questões avaliadas estão com a última '
+                'resposta certa.',
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
+            ProgressSection(progress: data.progress),
+          ],
         );
       default:
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
             Text(
-              'Avaliadas ${data.evaluatedAttempts} tentativa(s) recente(s).',
+              'Avaliadas ${data.evaluatedAttempts} tentativa(s) recente(s). '
+              'A prioridade considera a última resposta de cada questão.',
             ),
+            ProgressSection(progress: data.progress),
             if (data.topics.every((t) => t.priority == 'LOW'))
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -98,7 +106,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
-                'Acertos: ${t.correctCount}/${t.answeredCount} (${formatPct(t.accuracyPct)})',
+                'Última resposta certa em ${t.correctCount} de ${t.answeredCount} questões (${formatPct(t.accuracyPct)})',
               ),
               if (t.status == 'NO_NEW_QUESTIONS')
                 Padding(

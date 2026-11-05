@@ -1,5 +1,11 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
-import { overallStatus, selectReviewTopics, selectSuggestions } from './domain.js';
+import {
+  buildProgress,
+  latestAnswerPerQuestion,
+  overallStatus,
+  selectReviewTopics,
+  selectSuggestions,
+} from './domain.js';
 import type { RecommendationRepository } from './repository.js';
 import type { RecommendationsView } from './schemas.js';
 
@@ -21,7 +27,12 @@ export class RecommendationService {
     }
 
     const history = await this.repo.recentHistory(studentId);
-    const review = selectReviewTopics(history.facts);
+    // Priority uses the CURRENT state (latest answer per question); progress shows the trajectory.
+    const current = latestAnswerPerQuestion(
+      history.answers,
+      history.attempts.map((a) => a.id),
+    );
+    const review = selectReviewTopics(current);
     const candidates = await this.repo.unansweredQuestions(
       studentId,
       review.map((t) => t.topicId),
@@ -29,8 +40,12 @@ export class RecommendationService {
 
     return {
       studentId,
-      status: overallStatus(history.attempts, review.length),
-      evaluatedAttempts: history.attempts,
+      status: overallStatus(history.attempts.length, review.length),
+      evaluatedAttempts: history.attempts.length,
+      progress: buildProgress(history.answers, history.attempts).map((p) => ({
+        ...p,
+        submittedAt: p.submittedAt.toISOString(),
+      })),
       topics: review.map((t) => {
         const suggested = selectSuggestions(candidates.filter((c) => c.topicId === t.topicId));
         const available = suggested.length > 0;

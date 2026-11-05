@@ -243,7 +243,10 @@ void main() {
         ]),
       );
       expect(find.textContaining('Equações • prioridade alta'), findsOneWidget);
-      expect(find.text('Acertos: 1/4 (25%)'), findsOneWidget);
+      expect(
+        find.text('Última resposta certa em 1 de 4 questões (25%)'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Quanto é x se x - 7 = 1?'), findsOneWidget);
       expect(find.textContaining('Correta'), findsNothing);
     });

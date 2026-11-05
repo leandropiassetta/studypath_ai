@@ -24,6 +24,33 @@ export interface TopicPerformance {
   accuracyPct: number;
 }
 
+/** An answer tied to its question and attempt, newest attempts identified by order. */
+export interface HistoricAnswer extends AnswerFact {
+  questionId: string;
+  attemptId: string;
+}
+
+export interface AttemptSummary {
+  id: string;
+  submittedAt: Date;
+  scorePct: number;
+}
+
+export interface ProgressTopic {
+  topicId: string;
+  topicName: string;
+  correctCount: number;
+  totalCount: number;
+  accuracyPct: number;
+}
+
+export interface ProgressPoint {
+  attemptId: string;
+  submittedAt: Date;
+  scorePct: number;
+  topics: ProgressTopic[];
+}
+
 export interface ReviewTopic extends TopicPerformance {
   priority: Priority;
 }
@@ -58,6 +85,50 @@ export function summarizeByTopic(facts: AnswerFact[]): TopicPerformance[] {
   return [...map.values()].map((t) => ({
     ...t,
     accuracyPct: Math.round((t.correctCount * 10000) / t.answeredCount) / 100,
+  }));
+}
+
+/**
+ * RN-06 (current state): for each question keep only its most recent answer.
+ * A question missed before but answered correctly later counts as correct now, so old
+ * mistakes stop weighing on topics the student has since fixed.
+ * `attemptIdsNewestFirst` defines recency (index 0 = most recent attempt).
+ */
+export function latestAnswerPerQuestion(
+  answers: HistoricAnswer[],
+  attemptIdsNewestFirst: string[],
+): HistoricAnswer[] {
+  const rank = new Map(attemptIdsNewestFirst.map((id, i) => [id, i]));
+  const latest = new Map<string, HistoricAnswer>();
+  for (const a of answers) {
+    const r = rank.get(a.attemptId);
+    if (r === undefined) continue;
+    const current = latest.get(a.questionId);
+    if (current === undefined || r < (rank.get(current.attemptId) as number)) {
+      latest.set(a.questionId, a);
+    }
+  }
+  return [...latest.values()];
+}
+
+/** Per-attempt performance by topic, oldest first, so the UI can show the trajectory. */
+export function buildProgress(
+  answers: HistoricAnswer[],
+  attemptsNewestFirst: AttemptSummary[],
+): ProgressPoint[] {
+  return [...attemptsNewestFirst].reverse().map((attempt) => ({
+    attemptId: attempt.id,
+    submittedAt: attempt.submittedAt,
+    scorePct: attempt.scorePct,
+    topics: summarizeByTopic(answers.filter((a) => a.attemptId === attempt.id))
+      .map((t) => ({
+        topicId: t.topicId,
+        topicName: t.topicName,
+        correctCount: t.correctCount,
+        totalCount: t.answeredCount,
+        accuracyPct: t.accuracyPct,
+      }))
+      .sort((a, b) => cmp(a.topicName, b.topicName)),
   }));
 }
 
