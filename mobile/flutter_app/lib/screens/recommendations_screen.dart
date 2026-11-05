@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/recommendations.dart';
 import '../services/api_client.dart';
 import '../widgets/async_body.dart';
+import '../widgets/centered_content.dart';
 import '../widgets/question_card.dart';
 import 'result_screen.dart' show formatPct;
 
@@ -50,11 +51,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Recomendações')),
-    body: _loading
-        ? const LoadingView()
-        : _error != null
-        ? ErrorView(message: _error!, onRetry: _load)
-        : _buildContent(_data!),
+    body: CenteredContent(
+      child: _loading
+          ? const LoadingView()
+          : _error != null
+          ? ErrorView(message: _error!, onRetry: _load)
+          : _buildContent(_data!),
+    ),
   );
 
   Widget _buildContent(Recommendations data) {
@@ -105,7 +108,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                   ),
                 ),
               for (var i = 0; i < t.suggestedQuestions.length; i++)
-                QuestionCard(index: i + 1, question: t.suggestedQuestions[i]),
+                QuestionCard(
+                  index: i + 1,
+                  question: t.suggestedQuestions[i],
+                  readOnly: true,
+                ),
             ],
           ],
         );

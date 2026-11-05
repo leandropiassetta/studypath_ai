@@ -4,6 +4,7 @@ import '../models/quiz.dart';
 import '../services/api_client.dart';
 import '../services/request_id.dart';
 import '../widgets/async_body.dart';
+import '../widgets/centered_content.dart';
 import '../widgets/question_card.dart';
 import 'result_screen.dart';
 
@@ -98,11 +99,13 @@ class _QuizScreenState extends State<QuizScreen> {
     final quiz = _quiz;
     return Scaffold(
       appBar: AppBar(title: Text(quiz?.title ?? 'Simulado')),
-      body: _loading
-          ? const LoadingView()
-          : _loadError != null
-          ? ErrorView(message: _loadError!, onRetry: _load)
-          : _buildQuiz(quiz!),
+      body: CenteredContent(
+        child: _loading
+            ? const LoadingView()
+            : _loadError != null
+            ? ErrorView(message: _loadError!, onRetry: _load)
+            : _buildQuiz(quiz!),
+      ),
     );
   }
 

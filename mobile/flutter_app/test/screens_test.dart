@@ -374,7 +374,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('33.33%'), findsOneWidget);
+      expect(find.text('33,33%'), findsOneWidget);
       expect(find.text('0 de 1 questões corretas'), findsOneWidget);
       expect(find.text('0/1 (0%)'), findsOneWidget);
       expect(
