@@ -98,7 +98,10 @@ void main() {
           point(50, 25, 75),
           point(100, 100, 100),
         ]);
-        expect(find.text('Sua evolução por tentativa'), findsOneWidget);
+        expect(
+          find.text('Sua evolução nos simulados completos'),
+          findsOneWidget,
+        );
         expect(find.text('0% → 50% → 100%'), findsOneWidget); // overall
         expect(find.text('0% → 25% → 100%'), findsOneWidget); // Equações
         expect(find.text('0% → 75% → 100%'), findsOneWidget); // Geometria

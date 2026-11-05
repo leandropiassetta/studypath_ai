@@ -38,7 +38,7 @@ class ProgressSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Sua evolução por tentativa',
+              'Sua evolução nos simulados completos',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -57,7 +57,7 @@ class ProgressSection extends StatelessWidget {
               ),
             const SizedBox(height: 8),
             Text(
-              'Da mais antiga para a mais recente. As tentativas usam as mesmas '
+              'Da mais antiga para a mais recente (só simulados completos). Eles usam as mesmas '
               'questões: a evolução mostra desempenho, não prova aprendizado.',
               style: theme.textTheme.bodySmall,
             ),

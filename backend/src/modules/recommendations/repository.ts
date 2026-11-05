@@ -1,11 +1,8 @@
 import type { DataSource } from 'typeorm';
 import type { QuestionOption } from '../../database/entities/index.js';
-import {
-  RECENT_ATTEMPTS_WINDOW,
-  type AttemptSummary,
-  type Difficulty,
-  type HistoricAnswer,
-} from './domain.js';
+import { type AttemptSummary, type Difficulty, type HistoricAnswer } from './domain.js';
+
+const MAX_HISTORY_ATTEMPTS = 500;
 
 export interface UnansweredQuestion {
   id: string;
@@ -25,15 +22,22 @@ export class RecommendationRepository {
       .then((r) => r.length > 0);
   }
 
-  /** RN-06: the student's most recent attempts (newest first) and all their answers. */
-  async recentHistory(studentId: string): Promise<{
+  /**
+   * RN-06: the student's attempts (newest first, capped) and all their answers. The cap only
+   * bounds the work for very long histories; the demo never gets near it.
+   */
+  async history(studentId: string): Promise<{
     attempts: AttemptSummary[];
     answers: HistoricAnswer[];
   }> {
-    const attempts = await this.ds.query<{ id: string; submitted_at: Date; score_pct: string }[]>(
-      `SELECT id, submitted_at, score_pct FROM attempts WHERE student_id = $1
-       ORDER BY submitted_at DESC, id DESC LIMIT $2`,
-      [studentId, RECENT_ATTEMPTS_WINDOW],
+    const attempts = await this.ds.query<
+      { id: string; submitted_at: Date; score_pct: string; kind: 'standard' | 'review' }[]
+    >(
+      `SELECT a.id, a.submitted_at, a.score_pct, qz.kind
+       FROM attempts a JOIN quizzes qz ON qz.id = a.quiz_id
+       WHERE a.student_id = $1
+       ORDER BY a.submitted_at DESC, a.id DESC LIMIT $2`,
+      [studentId, MAX_HISTORY_ATTEMPTS],
     );
     if (attempts.length === 0) return { attempts: [], answers: [] };
 
@@ -58,6 +62,7 @@ export class RecommendationRepository {
         id: a.id,
         submittedAt: a.submitted_at,
         scorePct: Number(a.score_pct),
+        kind: a.kind,
       })),
       answers: rows.map((r) => ({
         attemptId: r.attempt_id,

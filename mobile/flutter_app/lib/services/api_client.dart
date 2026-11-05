@@ -65,6 +65,18 @@ class ApiClient {
     return _parse(json, AttemptResult.fromJson);
   }
 
+  /// Creates (or reuses) a review quiz for a topic that is currently in the recommendations.
+  Future<Quiz> createReviewQuiz(String topicId) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/students/$studentId/review-quizzes'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({'topicId': topicId}),
+      ),
+    );
+    return _parse(json, Quiz.fromJson);
+  }
+
   /// Only valid for questions answered incorrectly in [attemptId].
   Future<Explanation> fetchExplanation({
     required String attemptId,

@@ -51,12 +51,18 @@ class Quiz {
     required this.slug,
     required this.title,
     required this.questions,
+    this.kind = 'standard',
+    this.newCount,
+    this.retryCount,
   });
 
   factory Quiz.fromJson(Map<String, dynamic> json) => Quiz(
     id: json['id'] as String,
     slug: json['slug'] as String,
     title: json['title'] as String,
+    kind: (json['kind'] as String?) ?? 'standard',
+    newCount: json['newCount'] as int?,
+    retryCount: json['retryCount'] as int?,
     questions: (json['questions'] as List<dynamic>)
         .map((q) => Question.fromJson(q as Map<String, dynamic>))
         .toList(),
@@ -66,4 +72,13 @@ class Quiz {
   final String slug;
   final String title;
   final List<Question> questions;
+
+  /// `standard` (the demo quiz) or `review` (generated from a topic recommendation).
+  final String kind;
+
+  /// Review quizzes only: questions never answered / questions answered wrongly before.
+  final int? newCount;
+  final int? retryCount;
+
+  bool get isReview => kind == 'review';
 }

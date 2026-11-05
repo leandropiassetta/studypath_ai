@@ -43,6 +43,7 @@ export class QuizRepository {
       id: quiz.id,
       slug: quiz.slug,
       title: quiz.title,
+      kind: quiz.kind,
       questions: rows.map((r) => ({
         id: r.id,
         topic: { id: r.topic_id, name: r.topic_name },

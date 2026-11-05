@@ -7,6 +7,9 @@ import type { ExplanationProvider } from './modules/ai/providers/types.js';
 import { AttemptRepository } from './modules/attempts/repository.js';
 import { attemptRoutes } from './modules/attempts/routes.js';
 import { AttemptService } from './modules/attempts/service.js';
+import { ReviewRepository } from './modules/reviews/repository.js';
+import { reviewRoutes } from './modules/reviews/routes.js';
+import { ReviewService } from './modules/reviews/service.js';
 import { RecommendationRepository } from './modules/recommendations/repository.js';
 import { recommendationRoutes } from './modules/recommendations/routes.js';
 import { RecommendationService } from './modules/recommendations/service.js';
@@ -75,6 +78,17 @@ export function buildApp({
         demoStudentId,
         explanationProvider,
         aiTimeoutMs,
+      ),
+    ),
+    { prefix: '/api/v1' },
+  );
+  void app.register(
+    reviewRoutes(
+      new ReviewService(
+        new RecommendationRepository(dataSource),
+        new ReviewRepository(dataSource),
+        new QuizRepository(dataSource),
+        demoStudentId,
       ),
     ),
     { prefix: '/api/v1' },

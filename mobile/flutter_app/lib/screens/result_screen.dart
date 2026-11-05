@@ -105,20 +105,26 @@ class ResultScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 16),
-            FilledButton(
-              key: const Key('recommendations-button'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => RecommendationsScreen(api: api),
+            if (!quiz.isReview) ...[
+              FilledButton(
+                key: const Key('recommendations-button'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => RecommendationsScreen(api: api),
+                  ),
                 ),
+                child: const Text('Ver recomendações de estudo'),
               ),
-              child: const Text('Ver recomendações de estudo'),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             OutlinedButton(
               key: const Key('retake-button'),
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fazer novo simulado'),
+              child: Text(
+                quiz.isReview
+                    ? 'Voltar às recomendações'
+                    : 'Fazer novo simulado',
+              ),
             ),
           ],
         ),

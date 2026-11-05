@@ -177,6 +177,7 @@ describe('buildProgress', () => {
     id,
     submittedAt: new Date(Date.UTC(2026, 0, 1, hour)),
     scorePct,
+    kind: 'standard',
   });
 
   it('returns attempts oldest first with per-topic accuracy', () => {

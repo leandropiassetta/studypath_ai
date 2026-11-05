@@ -15,13 +15,13 @@ describe('seed data', () => {
     expect(questions.flatMap(validateSeedQuestion)).toEqual([]);
   });
 
-  it('has 8 quiz questions (4 per topic, positions 1-8) and 3 extras per topic', () => {
+  it('has 8 quiz questions (4 per topic, positions 1-8) and 8 extras per topic', () => {
     const inQuiz = questions.filter((q) => q.quizPosition !== null);
     expect(inQuiz.map((q) => q.quizPosition).sort()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     for (const topic of [TOPIC_EQUACOES_ID, TOPIC_GEOMETRIA_ID]) {
       expect(inQuiz.filter((q) => q.topicId === topic)).toHaveLength(4);
       expect(questions.filter((q) => q.topicId === topic && q.quizPosition === null)).toHaveLength(
-        3,
+        8,
       );
     }
   });

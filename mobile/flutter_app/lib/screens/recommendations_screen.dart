@@ -6,6 +6,7 @@ import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/progress_section.dart';
 import '../widgets/question_card.dart';
+import 'quiz_screen.dart';
 import 'result_screen.dart' show formatPct;
 
 class RecommendationsScreen extends StatefulWidget {
@@ -22,15 +23,41 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   String? _error;
   bool _loading = true;
 
+  /// Topic whose review quiz is being created (disables its button and shows progress).
+  String? _practicingTopicId;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _practice(TopicRecommendation topic) async {
+    setState(() => _practicingTopicId = topic.topicId);
+    try {
+      final quiz = await widget.api.createReviewQuiz(topic.topicId);
+      if (!mounted) return;
+      setState(() => _practicingTopicId = null);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              QuizScreen(api: widget.api, slug: quiz.slug, initialQuiz: quiz),
+        ),
+      );
+      if (!mounted) return;
+      await _load(silent: true); // the answers may have changed the priorities
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _practicingTopicId = null);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// [silent] keeps the current content on screen while refreshing (after a practice quiz).
+  Future<void> _load({bool silent = false}) async {
     setState(() {
-      _loading = true;
+      if (!silent) _loading = true;
       _error = null;
     });
     try {
@@ -87,7 +114,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           padding: const EdgeInsets.all(12),
           children: [
             Text(
-              'Avaliadas ${data.evaluatedAttempts} tentativa(s) recente(s). '
+              'Considerando ${data.evaluatedAttempts} tentativa(s). '
               'A prioridade considera a última resposta de cada questão.',
             ),
             ProgressSection(progress: data.progress),
@@ -107,6 +134,26 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               ),
               Text(
                 'Última resposta certa em ${t.correctCount} de ${t.answeredCount} questões (${formatPct(t.accuracyPct)})',
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    key: Key('practice-${t.topicId}'),
+                    onPressed: _practicingTopicId == null
+                        ? () => _practice(t)
+                        : null,
+                    icon: _practicingTopicId == t.topicId
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.edit_note),
+                    label: const Text('Praticar este assunto'),
+                  ),
+                ),
               ),
               if (t.status == 'NO_NEW_QUESTIONS')
                 Padding(

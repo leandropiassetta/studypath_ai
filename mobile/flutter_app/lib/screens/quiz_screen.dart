@@ -9,10 +9,18 @@ import '../widgets/question_card.dart';
 import 'result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
-  const QuizScreen({super.key, required this.api, required this.slug});
+  const QuizScreen({
+    super.key,
+    required this.api,
+    required this.slug,
+    this.initialQuiz,
+  });
 
   final ApiClient api;
   final String slug;
+
+  /// A quiz that was already created (review quizzes): no loading step is needed.
+  final Quiz? initialQuiz;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -33,7 +41,13 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final initial = widget.initialQuiz;
+    if (initial != null) {
+      _quiz = initial;
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -80,6 +94,11 @@ class _QuizScreenState extends State<QuizScreen> {
         ),
       );
       if (!mounted) return;
+      if (quiz.isReview) {
+        // A review quiz is one-shot: go back to the recommendations, which reload.
+        Navigator.of(context).pop();
+        return;
+      }
       setState(() {
         _answers.clear();
         _requestId = null;
@@ -92,6 +111,17 @@ class _QuizScreenState extends State<QuizScreen> {
         _submitError = e.message;
       });
     }
+  }
+
+  String _reviewSummary(Quiz quiz) {
+    final fresh = quiz.newCount ?? 0;
+    final retry = quiz.retryCount ?? 0;
+    final parts = [
+      if (fresh > 0) '$fresh inédita(s)',
+      if (retry > 0) '$retry para refazer',
+    ];
+    return 'Revisão de ${quiz.questions.length} questão(ões): ${parts.join(' e ')}.'
+        '${retry > 0 ? ' Refazer a mesma questão ajuda a fixar, mas não prova que você entendeu.' : ''}';
   }
 
   @override
@@ -113,6 +143,14 @@ class _QuizScreenState extends State<QuizScreen> {
     final complete = _answers.length == quiz.questions.length;
     return Column(
       children: [
+        if (quiz.isReview)
+          Container(
+            key: const Key('review-banner'),
+            width: double.infinity,
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            padding: const EdgeInsets.all(12),
+            child: Text(_reviewSummary(quiz)),
+          ),
         LinearProgressIndicator(
           key: const Key('progress'),
           value: quiz.questions.isEmpty

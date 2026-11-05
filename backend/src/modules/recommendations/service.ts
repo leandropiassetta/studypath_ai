@@ -1,5 +1,6 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
 import {
+  RECENT_ATTEMPTS_WINDOW,
   buildProgress,
   latestAnswerPerQuestion,
   overallStatus,
@@ -26,8 +27,9 @@ export class RecommendationService {
       throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
     }
 
-    const history = await this.repo.recentHistory(studentId);
-    // Priority uses the CURRENT state (latest answer per question); progress shows the trajectory.
+    const history = await this.repo.history(studentId);
+    // Priority uses the CURRENT state (latest answer per question, any quiz). Progress shows the
+    // trajectory of the last full quizzes only: review quizzes have a different size and scope.
     const current = latestAnswerPerQuestion(
       history.answers,
       history.attempts.map((a) => a.id),
@@ -42,7 +44,10 @@ export class RecommendationService {
       studentId,
       status: overallStatus(history.attempts.length, review.length),
       evaluatedAttempts: history.attempts.length,
-      progress: buildProgress(history.answers, history.attempts).map((p) => ({
+      progress: buildProgress(
+        history.answers,
+        history.attempts.filter((a) => a.kind === 'standard').slice(0, RECENT_ATTEMPTS_WINDOW),
+      ).map((p) => ({
         ...p,
         submittedAt: p.submittedAt.toISOString(),
       })),

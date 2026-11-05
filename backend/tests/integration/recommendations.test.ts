@@ -92,11 +92,16 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       accuracyPct: 25,
       status: 'AVAILABLE',
     });
-    // 3 extras for the topic, easy -> medium -> hard; none from the quiz already answered
+    // RN-08: ordered by difficulty, then creation date. The topic has 3 easy extras, so those win.
     expect(topic.suggestedQuestions.map((q: { difficulty: string }) => q.difficulty)).toEqual([
       'easy',
-      'medium',
-      'hard',
+      'easy',
+      'easy',
+    ]);
+    expect(topic.suggestedQuestions.map((q: { id: string }) => q.id)).toEqual([
+      '22222222-2222-4222-8222-000000000009',
+      '22222222-2222-4222-8222-000000000015',
+      '22222222-2222-4222-8222-000000000016',
     ]);
     const ids = topic.suggestedQuestions.map((q: { id: string }) => q.id);
     expect(ids.some((id: string) => QUESTION_IDS.includes(id))).toBe(false);
@@ -151,7 +156,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       status: 'NO_NEW_QUESTIONS',
       suggestedQuestions: [],
       correctCount: 1,
-      answeredCount: 7,
+      answeredCount: 12,
     });
     expect(topic.message).toEqual(expect.any(String));
   });
@@ -192,11 +197,13 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     expect([...dates].sort((a, b) => a - b)).toEqual(dates);
   });
 
-  it('only evaluates the 5 most recent attempts (RN-06)', async () => {
-    await submit(ALL_WRONG); // oldest: must fall outside the window
+  it('evaluates the current state over all attempts; progress shows the last 5 full quizzes', async () => {
+    await submit(ALL_WRONG); // oldest
     for (let i = 0; i < 5; i += 1) await submit(CORRECT);
     const out = (await recs()).json();
-    expect(out).toMatchObject({ status: 'ON_TRACK', evaluatedAttempts: 5, topics: [] });
+    expect(out).toMatchObject({ status: 'ON_TRACK', evaluatedAttempts: 6, topics: [] });
+    expect(out.progress).toHaveLength(5); // the oldest (all wrong) is outside the trajectory
+    expect(out.progress.every((p: { scorePct: number }) => p.scorePct === 100)).toBe(true);
   });
 
   it('CA-09: returns 403 for another student', async () => {

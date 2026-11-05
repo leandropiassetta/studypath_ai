@@ -34,6 +34,7 @@ export interface AttemptSummary {
   id: string;
   submittedAt: Date;
   scorePct: number;
+  kind: 'standard' | 'review';
 }
 
 export interface ProgressTopic {

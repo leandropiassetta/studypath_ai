@@ -5,6 +5,7 @@ import 'package:studypath_app/models/recommendations.dart';
 import 'package:studypath_app/services/request_id.dart';
 
 void main() {
+  reviewQuizModelTests();
   test('parses a quiz', () {
     final quiz = Quiz.fromJson({
       'id': 'q',
@@ -62,6 +63,7 @@ void main() {
       'evaluatedAttempts': 1,
       'topics': [
         {
+          'topicId': 't1',
           'topicName': 'Equações',
           'priority': 'LOW',
           'correctCount': 1,
@@ -75,6 +77,7 @@ void main() {
     });
     expect(r.topics.single.message, 'Revise');
     expect(r.topics.single.priority, 'LOW');
+    expect(r.topics.single.topicId, 't1');
     expect(r.topics.single.suggestedQuestions, isEmpty);
   });
 
@@ -85,5 +88,31 @@ void main() {
     final ids = {for (var i = 0; i < 50; i++) newRequestId()};
     expect(ids, hasLength(50));
     expect(ids.every(uuid.hasMatch), isTrue);
+  });
+}
+
+void reviewQuizModelTests() {
+  test('parses a review quiz with its counts, and defaults to standard', () {
+    final review = Quiz.fromJson({
+      'id': 'r',
+      'slug': 'revisao-1',
+      'title': 'Revisão: Equações',
+      'kind': 'review',
+      'newCount': 2,
+      'retryCount': 1,
+      'questions': <dynamic>[],
+    });
+    expect(review.isReview, isTrue);
+    expect(review.newCount, 2);
+    expect(review.retryCount, 1);
+
+    final standard = Quiz.fromJson({
+      'id': 'q',
+      'slug': 'demo',
+      'title': 'T',
+      'questions': <dynamic>[],
+    });
+    expect(standard.isReview, isFalse);
+    expect(standard.newCount, isNull);
   });
 }

@@ -86,16 +86,16 @@ describe('seed', () => {
     expect(quiz.isActive).toBe(true);
   });
 
-  it('has 8 ordered quiz questions, 4 per topic, plus 6 extras', async () => {
+  it('has 8 ordered quiz questions, 4 per topic, plus 16 extras', async () => {
     const links = await ds.getRepository(QuizQuestion).find({ order: { position: 'ASC' } });
     expect(links.map((l) => l.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(await count('SELECT count(*) n FROM questions')).toBe(14);
+    expect(await count('SELECT count(*) n FROM questions')).toBe(24);
     expect(
       await count(
         `SELECT count(*) n FROM questions q WHERE NOT EXISTS
          (SELECT 1 FROM quiz_questions qq WHERE qq.question_id = q.id)`,
       ),
-    ).toBe(6);
+    ).toBe(16);
     const perTopic = await ds.query<{ topic_id: string; n: string }[]>(
       `SELECT q.topic_id, count(*) n FROM quiz_questions qq
        JOIN questions q ON q.id = qq.question_id GROUP BY q.topic_id`,
@@ -106,12 +106,12 @@ describe('seed', () => {
   it('every correct option exists in its options (through the entity)', async () => {
     const all = await ds.getRepository(Question).find();
     for (const q of all) expect(q.options.map((o) => o.key)).toContain(q.correctOption);
-    expect(all.filter((q) => q.topicId === TOPIC_EQUACOES_ID)).toHaveLength(7);
+    expect(all.filter((q) => q.topicId === TOPIC_EQUACOES_ID)).toHaveLength(12);
   });
 
   it('is idempotent', async () => {
     await seed(ds);
-    expect(await count('SELECT count(*) n FROM questions')).toBe(14);
+    expect(await count('SELECT count(*) n FROM questions')).toBe(24);
     expect(await count('SELECT count(*) n FROM quiz_questions')).toBe(8);
   });
 });

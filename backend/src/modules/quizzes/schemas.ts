@@ -10,6 +10,7 @@ export const QuizResponse = Type.Object({
   id: Type.String(),
   slug: Type.String(),
   title: Type.String(),
+  kind: Type.Union([Type.Literal('standard'), Type.Literal('review')]),
   questions: Type.Array(
     Type.Object({
       id: Type.String(),
