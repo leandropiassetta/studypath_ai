@@ -71,12 +71,19 @@ class _QuizScreenState extends State<QuizScreen> {
       );
       if (!mounted) return;
       setState(() => _submitting = false);
+      // The attempt succeeded: this intent is done. Returning from the result starts a fresh one.
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) =>
               ResultScreen(api: widget.api, quiz: quiz, result: result),
         ),
       );
+      if (!mounted) return;
+      setState(() {
+        _answers.clear();
+        _requestId = null;
+        _submitError = null;
+      });
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -103,6 +110,12 @@ class _QuizScreenState extends State<QuizScreen> {
     final complete = _answers.length == quiz.questions.length;
     return Column(
       children: [
+        LinearProgressIndicator(
+          key: const Key('progress'),
+          value: quiz.questions.isEmpty
+              ? 0
+              : _answers.length / quiz.questions.length,
+        ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(12),

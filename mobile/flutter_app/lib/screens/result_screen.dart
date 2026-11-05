@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/attempt_result.dart';
 import '../models/quiz.dart';
 import '../services/api_client.dart';
+import '../widgets/explanation_tile.dart';
 import 'recommendations_screen.dart';
 
 String formatPct(double v) =>
@@ -56,20 +57,34 @@ class ResultScreen extends StatelessWidget {
           Text('Correção', style: Theme.of(context).textTheme.titleMedium),
           for (final a in result.answers)
             Card(
-              child: ListTile(
-                leading: Icon(
-                  a.isCorrect ? Icons.check_circle : Icons.cancel,
-                  color: a.isCorrect ? Colors.green : Colors.red,
-                ),
-                title: Text(
-                  '${index[a.questionId]}. ${byId[a.questionId]?.statement ?? ''}',
-                ),
-                subtitle: Text(
-                  'Sua resposta: ${a.selectedOption}'
-                  '${a.isCorrect ? '' : ' • Correta: ${a.correctOption}'}\n'
-                  '${a.referenceExplanation}',
-                ),
-                isThreeLine: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      a.isCorrect ? Icons.check_circle : Icons.cancel,
+                      color: a.isCorrect ? Colors.green : Colors.red,
+                    ),
+                    title: Text(
+                      '${index[a.questionId]}. ${byId[a.questionId]?.statement ?? ''}',
+                    ),
+                    subtitle: Text(
+                      'Sua resposta: ${a.selectedOption}'
+                      '${a.isCorrect ? '' : ' • Correta: ${a.correctOption}'}\n'
+                      '${a.referenceExplanation}',
+                    ),
+                    isThreeLine: true,
+                  ),
+                  if (!a.isCorrect)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 56, bottom: 4),
+                      child: ExplanationTile(
+                        api: api,
+                        attemptId: result.attemptId,
+                        questionId: a.questionId,
+                      ),
+                    ),
+                ],
               ),
             ),
           const SizedBox(height: 16),
@@ -81,6 +96,12 @@ class ResultScreen extends StatelessWidget {
               ),
             ),
             child: const Text('Ver recomendações de estudo'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: const Key('retake-button'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fazer novo simulado'),
           ),
         ],
       ),

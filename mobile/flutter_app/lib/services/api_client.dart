@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/attempt_result.dart';
+import '../models/explanation.dart';
 import '../models/quiz.dart';
 import '../models/recommendations.dart';
 
@@ -62,6 +63,21 @@ class ApiClient {
       ),
     );
     return _parse(json, AttemptResult.fromJson);
+  }
+
+  /// Only valid for questions answered incorrectly in [attemptId].
+  Future<Explanation> fetchExplanation({
+    required String attemptId,
+    required String questionId,
+  }) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/attempts/$attemptId/explanations'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({'questionId': questionId}),
+      ),
+    );
+    return _parse(json, Explanation.fromJson);
   }
 
   Future<Recommendations> fetchRecommendations() async {

@@ -2,7 +2,7 @@
 
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial está em [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-**Estado:** P0 completo (T01–T09) e T10 (explicações por LLM com fallback) implementada no backend. Falta integrar a explicação no app e os refinamentos de UI (T11).
+**Estado:** P0 (T01–T09) e P1 (T10 explicações por LLM com fallback; T11 melhorias de UI) completos. Android/iOS: projetos gerados, ainda não executados em emulador/dispositivo.
 
 > **Somente uso local.** Não há autenticação real: a API aceita apenas o aluno fictício do modo demo e escuta em `127.0.0.1`. Não a exponha publicamente. Todos os dados são fictícios.
 
@@ -78,7 +78,8 @@ Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem deta
 3. Envie: o resultado mostra **50%**, correção por questão e resumo por assunto.
 4. Abra "Ver recomendações de estudo": **Equações** aparece com prioridade alta e 3 exercícios ainda não respondidos.
 5. Idempotência: `scripts/demo-replay.sh` envia o mesmo `requestId` duas vezes (HTTP 201 e depois 200, mesmo `attemptId`, sem duplicar respostas).
-6. Decisões a explicar: correção determinística, transação, idempotência e IA fora do cálculo. A explicação por LLM (T10) é a próxima evolução e **não está implementada**.
+6. Na tela de resultado, toque em "Explicar meu erro" numa questão errada. Com `AI_MODE=mock` (reinicie a API com essa variável) aparece "Explicação gerada por IA"; com a IA desligada ou indisponível, "Explicação de referência". A nota nunca muda.
+7. Decisões a explicar: correção determinística, transação, idempotência e IA restrita à explicação, com fallback.
 
 Teste de resiliência no app: pare a API (`Ctrl+C`), tente enviar e veja o erro com "Tentar enviar novamente"; suba a API de novo e reenvie. O reenvio usa o mesmo `requestId`, então não duplica a tentativa.
 

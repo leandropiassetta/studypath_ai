@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../models/quiz.dart';
 
+String difficultyLabel(String difficulty) => switch (difficulty) {
+  'easy' => 'Fácil',
+  'medium' => 'Média',
+  'hard' => 'Difícil',
+  _ => difficulty,
+};
+
 class QuestionCard extends StatelessWidget {
   const QuestionCard({
     super.key,
@@ -26,11 +33,21 @@ class QuestionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (question.topicName != null)
-            Text(
-              question.topicName!,
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              if (question.topicName != null)
+                Text(
+                  question.topicName!,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              Text(
+                difficultyLabel(question.difficulty),
+                key: Key('difficulty-${question.id}'),
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
           Text(
             '$index. ${question.statement}',
             style: Theme.of(context).textTheme.titleMedium,
