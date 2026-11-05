@@ -9,7 +9,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
   },
   "include": ["src", "tests", "vitest.config.ts"]
 }

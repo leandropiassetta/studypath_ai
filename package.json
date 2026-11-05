@@ -16,7 +16,8 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:migrate": "npm run db:migrate -w backend",
-    "db:revert": "npm run db:revert -w backend"
+    "db:revert": "npm run db:revert -w backend",
+    "db:seed": "npm run db:seed -w backend"
   },
   "devDependencies": {
     "prettier": "^3.9.10"

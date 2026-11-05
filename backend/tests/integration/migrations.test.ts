@@ -22,9 +22,12 @@ afterAll(async () => {
 describe('migrations on an empty database', () => {
   it('apply without error and are recorded', async () => {
     const applied = await ds.runMigrations();
-    expect(applied.map((m) => m.name)).toEqual(['Baseline1762300000000']);
+    expect(applied.map((m) => m.name)).toEqual([
+      'Baseline1762300000000',
+      'CreateCoreSchema1762300001000',
+    ]);
     const rows = await ds.query('SELECT name FROM migrations');
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(2);
   });
 
   it('are idempotent on a second run', async () => {

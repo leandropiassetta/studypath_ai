@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx --env-file-if-exists=../.env src/database/migrate.ts run",
-    "db:revert": "tsx --env-file-if-exists=../.env src/database/migrate.ts revert"
+    "db:revert": "tsx --env-file-if-exists=../.env src/database/migrate.ts revert",
+    "db:seed": "tsx --env-file-if-exists=../.env src/database/seeds/run.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
