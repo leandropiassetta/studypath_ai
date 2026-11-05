@@ -1,6 +1,6 @@
 # StudyPath AI
 
-MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial está em [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
+MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial (SDD) é mantida localmente em `docs/StudyPath_AI_SPEC.md` e **não é versionada** (`docs/` está no `.gitignore`).
 
 **Estado:** P0 (T01–T09) e P1 (T10 explicações por LLM com fallback; T11 melhorias de UI) completos. Android/iOS: projetos gerados, ainda não executados em emulador/dispositivo.
 
