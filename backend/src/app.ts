@@ -3,6 +3,9 @@ import type { DataSource } from 'typeorm';
 import { AttemptRepository } from './modules/attempts/repository.js';
 import { attemptRoutes } from './modules/attempts/routes.js';
 import { AttemptService } from './modules/attempts/service.js';
+import { RecommendationRepository } from './modules/recommendations/repository.js';
+import { recommendationRoutes } from './modules/recommendations/routes.js';
+import { RecommendationService } from './modules/recommendations/service.js';
 import { healthRoutes } from './modules/health/routes.js';
 import { QuizRepository } from './modules/quizzes/repository.js';
 import { quizRoutes } from './modules/quizzes/routes.js';
@@ -32,6 +35,12 @@ export function buildApp({
     {
       prefix: '/api/v1',
     },
+  );
+  void app.register(
+    recommendationRoutes(
+      new RecommendationService(new RecommendationRepository(dataSource), demoStudentId),
+    ),
+    { prefix: '/api/v1' },
   );
   return app;
 }

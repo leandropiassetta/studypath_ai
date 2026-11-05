@@ -2,7 +2,7 @@
 
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. Especificação: [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-## Estado atual: T06 (idempotência de tentativas)
+## Estado atual: T07 (motor de recomendações)
 
 Requisitos: Node >= 22, Docker.
 
