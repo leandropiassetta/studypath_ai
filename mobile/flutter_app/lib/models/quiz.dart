@@ -32,8 +32,17 @@ class Question {
   final List<AnswerOption> options;
   final String difficulty;
 
-  /// Present in quiz questions; absent in recommendation suggestions.
+  /// Present in quiz questions; absent in recommendation suggestions
+  /// (the screen fills it from the topic the suggestion is listed under).
   final String? topicName;
+
+  Question withTopicName(String name) => Question(
+    id: id,
+    statement: statement,
+    options: options,
+    difficulty: difficulty,
+    topicName: name,
+  );
 }
 
 class Quiz {

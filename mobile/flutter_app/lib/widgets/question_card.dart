@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/quiz.dart';
+import 'topic_tag.dart';
 
 String difficultyLabel(String difficulty) => switch (difficulty) {
   'easy' => 'Fácil',
@@ -40,11 +41,13 @@ class QuestionCard extends StatelessWidget {
         children: [
           Wrap(
             spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (question.topicName != null)
-                Text(
-                  question.topicName!,
-                  style: Theme.of(context).textTheme.labelMedium,
+                KeyedSubtree(
+                  key: Key('topic-${question.id}'),
+                  child: TopicTag(name: question.topicName!),
                 ),
               Text(
                 difficultyLabel(question.difficulty),
@@ -53,6 +56,7 @@ class QuestionCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 6),
           Text(
             '$index. ${question.statement}',
             style: Theme.of(context).textTheme.titleMedium,

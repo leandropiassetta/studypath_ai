@@ -118,7 +118,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               for (var i = 0; i < t.suggestedQuestions.length; i++)
                 QuestionCard(
                   index: i + 1,
-                  question: t.suggestedQuestions[i],
+                  question: t.suggestedQuestions[i].withTopicName(t.topicName),
                   readOnly: true,
                 ),
             ],

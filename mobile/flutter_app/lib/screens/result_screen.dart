@@ -5,6 +5,7 @@ import '../models/quiz.dart';
 import '../services/api_client.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/explanation_tile.dart';
+import '../widgets/topic_tag.dart';
 import 'recommendations_screen.dart';
 
 /// pt-BR percentage without noise: 50 -> "50%", 87.5 -> "87,5%", 33.33 -> "33,33%".
@@ -68,6 +69,14 @@ class ResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (byId[a.questionId]?.topicName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, top: 10),
+                        child: KeyedSubtree(
+                          key: Key('result-topic-${a.questionId}'),
+                          child: TopicTag(name: byId[a.questionId]!.topicName!),
+                        ),
+                      ),
                     ListTile(
                       leading: Icon(
                         a.isCorrect ? Icons.check_circle : Icons.cancel,
