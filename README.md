@@ -1,26 +1,53 @@
 # StudyPath AI
 
-MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. Especificação: [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
+MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial está em [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-## Estado atual: T08 (app Flutter)
+**Estado:** P0 completo (T01–T09). P1 (explicações por LLM, T10; refinamentos de UI, T11) não implementado.
 
-Requisitos: Node >= 22, Docker.
+> **Somente uso local.** Não há autenticação real: a API aceita apenas o aluno fictício do modo demo e escuta em `127.0.0.1`. Não a exponha publicamente. Todos os dados são fictícios.
+
+## Como funciona
+
+- **Backend** (`backend/`): Node.js + Fastify + TypeScript strict, TypeORM, PostgreSQL. Camadas `routes → service → repository`, com regras de domínio puras (correção e recomendações) e sem uso de LLM.
+- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com simulado, resultado e recomendações.
+- **Banco**: PostgreSQL 16 via Docker Compose, com migrations versionadas e seed determinístico.
+
+## Requisitos
+
+Node >= 22 (`.nvmrc`), Docker e Flutter SDK (estável). Para o app em Chrome basta o Chrome.
+
+## Executar (do zero)
 
 ```bash
-cp .env.example .env     # credenciais locais de desenvolvimento, sem segredos
+cp .env.example .env     # credenciais locais de desenvolvimento; não são segredos
 npm install
-npm run db:up            # PostgreSQL 16 em 127.0.0.1:5432 (aguarda ficar saudável)
+npm run db:up            # PostgreSQL em 127.0.0.1:5432 (espera ficar saudável)
 npm run db:migrate       # aplica as migrations em banco vazio
 npm run db:seed          # dados fictícios (idempotente)
-npm run lint && npm run typecheck && npm run test && npm run build
-npm run dev -w backend   # API em 127.0.0.1:3000
-curl 127.0.0.1:3000/health
-curl 127.0.0.1:3000/api/v1/quizzes/demo-matematica
+npm run dev -w backend   # API em http://127.0.0.1:3000
 ```
 
-O `docker compose` cria dois bancos: `studypath` (desenvolvimento) e `studypath_test` (usado só pelos testes de integração, que o recriam do zero). Se o volume já existia antes da T02, rode `npm run db:down -- -v` e `npm run db:up` para criar o banco de teste.
+Em outro terminal, o app:
 
-### Dados do seed (fictícios)
+```bash
+cd mobile/flutter_app
+flutter pub get
+flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000
+```
+
+Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API só aceita CORS de origens `localhost` e `127.0.0.1` (necessário para o Flutter web).
+
+### Variáveis de ambiente (`.env`)
+
+| Variável          | Padrão                                 | Uso                                    |
+| ----------------- | -------------------------------------- | -------------------------------------- |
+| `DATABASE_URL`    | _(obrigatória)_                        | Conexão com o PostgreSQL               |
+| `HOST` / `PORT`   | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback) |
+| `APP_ENV`         | `demo`                                 | Modo demo                              |
+| `DEMO_STUDENT_ID` | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API            |
+| `API_BASE_URL`    | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`           |
+
+## Dados do seed (fictícios)
 
 | Item       | Valor                                                                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
@@ -28,16 +55,39 @@ O `docker compose` cria dois bancos: `studypath` (desenvolvimento) e `studypath_
 | Simulado   | `demo-matematica` (`11111111-1111-4111-8111-111111111111`), 8 questões: 4 de Equações, 4 de Geometria |
 | Extras     | 6 questões fora do simulado (3 por assunto), usadas nas recomendações                                 |
 
-### App Flutter (`mobile/flutter_app`)
+## API
 
-Requisitos: Flutter SDK estável. Com a API no ar (`npm run dev -w backend`):
+| Método e rota                                     | Descrição                                                            |
+| ------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /health`                                     | 200 `{"status":"ok"}` ou 503 se o banco estiver indisponível         |
+| `GET /api/v1/quizzes/:slug`                       | Simulado ativo com questões em ordem, sem gabarito                   |
+| `POST /api/v1/attempts`                           | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409 |
+| `GET /api/v1/students/:studentId/recommendations` | Temas prioritários e até 3 exercícios inéditos por tema              |
+
+Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem detalhes internos.
+
+## Roteiro de demonstração (3 minutos)
+
+1. Suba banco, API e app (comandos acima). Para começar do zero: `docker compose exec postgres psql -U studypath -d studypath -c "DELETE FROM attempts"`.
+2. No app, veja as 8 questões. Responda **1 de 4 certas em Equações** e **3 de 4 em Geometria** (gabarito por posição: B, B, C, C | B, C, B, B).
+3. Envie: o resultado mostra **50%**, correção por questão e resumo por assunto.
+4. Abra "Ver recomendações de estudo": **Equações** aparece com prioridade alta e 3 exercícios ainda não respondidos.
+5. Idempotência: `scripts/demo-replay.sh` envia o mesmo `requestId` duas vezes (HTTP 201 e depois 200, mesmo `attemptId`, sem duplicar respostas).
+6. Decisões a explicar: correção determinística, transação, idempotência e IA fora do cálculo. A explicação por LLM (T10) é a próxima evolução e **não está implementada**.
+
+Teste de resiliência no app: pare a API (`Ctrl+C`), tente enviar e veja o erro com "Tentar enviar novamente"; suba a API de novo e reenvie. O reenvio usa o mesmo `requestId`, então não duplica a tentativa.
+
+## Qualidade
 
 ```bash
-cd mobile/flutter_app
-flutter pub get
-flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000
-# emulador Android: --dart-define=API_BASE_URL=http://10.0.2.2:3000
-flutter analyze && flutter test
+npm run lint && npm run typecheck && npm run test && npm run build   # backend (precisa do Postgres no ar)
+cd mobile/flutter_app && flutter analyze && flutter test            # app
 ```
 
-A API aceita CORS apenas de origens `localhost` / `127.0.0.1` (necessário para o Flutter web).
+Os testes de integração usam o banco isolado `studypath_test` (criado pelo Docker Compose), que é recriado do zero a cada arquivo de teste. Se o volume do Postgres é anterior à criação desse banco, rode `npm run db:down -- -v` e `npm run db:up`.
+
+## Limitações conhecidas
+
+- A regra de prioridade (>= 2 respostas e < 60% de acertos nas 5 últimas tentativas) é uma heurística de demonstração, sem validação pedagógica.
+- Sem autenticação, cadastro ou ranking. O aluno vê recomendações, mas ainda não responde aos exercícios sugeridos.
+- O app Flutter tem apenas a plataforma web gerada; Android e iOS (`flutter create --platforms=android,ios .`) ficam para a etapa de testes em dispositivo.

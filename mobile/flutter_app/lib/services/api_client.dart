@@ -36,7 +36,7 @@ class ApiClient {
 
   Future<Quiz> fetchQuiz(String slug) async {
     final json = await _send(() => _client.get(_uri('/quizzes/$slug')));
-    return Quiz.fromJson(json);
+    return _parse(json, Quiz.fromJson);
   }
 
   /// Retrying with the same [requestId] is safe: the API is idempotent (RN-05).
@@ -61,14 +61,30 @@ class ApiClient {
         body: body,
       ),
     );
-    return AttemptResult.fromJson(json);
+    return _parse(json, AttemptResult.fromJson);
   }
 
   Future<Recommendations> fetchRecommendations() async {
     final json = await _send(
       () => _client.get(_uri('/students/$studentId/recommendations')),
     );
-    return Recommendations.fromJson(json);
+    return _parse(json, Recommendations.fromJson);
+  }
+
+  /// A malformed 2xx body must surface as an [ApiException] so screens leave the
+  /// loading state and offer a retry instead of failing silently.
+  T _parse<T>(
+    Map<String, dynamic> json,
+    T Function(Map<String, dynamic>) from,
+  ) {
+    try {
+      return from(json);
+    } catch (_) {
+      throw const ApiException(
+        'Resposta inesperada da API.',
+        code: 'BAD_RESPONSE',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _send(

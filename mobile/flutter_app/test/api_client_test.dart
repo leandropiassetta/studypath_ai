@@ -92,4 +92,34 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 502)),
     );
   });
+
+  test('a malformed 2xx body becomes ApiException(BAD_RESPONSE)', () async {
+    final api = clientFor(
+      MockClient(
+        (_) async => http.Response(jsonEncode({'unexpected': true}), 200),
+      ),
+    );
+    await expectLater(
+      api.fetchQuiz('demo'),
+      throwsA(
+        isA<ApiException>().having((e) => e.code, 'code', 'BAD_RESPONSE'),
+      ),
+    );
+  });
+
+  test('slow responses time out with a friendly message', () async {
+    final api = ApiClient(
+      baseUrl: 'http://api.test',
+      studentId: 's',
+      timeout: const Duration(milliseconds: 10),
+      client: MockClient((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        return http.Response('{}', 200);
+      }),
+    );
+    await expectLater(
+      api.fetchQuiz('demo'),
+      throwsA(isA<ApiException>().having((e) => e.code, 'code', 'TIMEOUT')),
+    );
+  });
 }
