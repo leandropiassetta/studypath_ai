@@ -2,7 +2,7 @@
 
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial está em [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-**Estado:** P0 completo (T01–T09). P1 (explicações por LLM, T10; refinamentos de UI, T11) não implementado.
+**Estado:** P0 completo (T01–T09) e T10 (explicações por LLM com fallback) implementada no backend. Falta integrar a explicação no app e os refinamentos de UI (T11).
 
 > **Somente uso local.** Não há autenticação real: a API aceita apenas o aluno fictício do modo demo e escuta em `127.0.0.1`. Não a exponha publicamente. Todos os dados são fictícios.
 
@@ -39,13 +39,16 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API s
 
 ### Variáveis de ambiente (`.env`)
 
-| Variável          | Padrão                                 | Uso                                    |
-| ----------------- | -------------------------------------- | -------------------------------------- |
-| `DATABASE_URL`    | _(obrigatória)_                        | Conexão com o PostgreSQL               |
-| `HOST` / `PORT`   | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback) |
-| `APP_ENV`         | `demo`                                 | Modo demo                              |
-| `DEMO_STUDENT_ID` | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API            |
-| `API_BASE_URL`    | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`           |
+| Variável                    | Padrão                                 | Uso                                        |
+| --------------------------- | -------------------------------------- | ------------------------------------------ |
+| `DATABASE_URL`              | _(obrigatória)_                        | Conexão com o PostgreSQL                   |
+| `HOST` / `PORT`             | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback)     |
+| `APP_ENV`                   | `demo`                                 | Modo demo                                  |
+| `DEMO_STUDENT_ID`           | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                |
+| `AI_MODE`                   | `disabled`                             | `disabled`, `mock` ou `real` (explicações) |
+| `AI_TIMEOUT_MS`             | `8000`                                 | Timeout da chamada à LLM                   |
+| `LLM_API_KEY` / `LLM_MODEL` | _(só em `AI_MODE=real`)_               | Chave e modelo; nunca versione a chave     |
+| `API_BASE_URL`              | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`               |
 
 ## Dados do seed (fictícios)
 
@@ -63,6 +66,8 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API s
 | `GET /api/v1/quizzes/:slug`                       | Simulado ativo com questões em ordem, sem gabarito                   |
 | `POST /api/v1/attempts`                           | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409 |
 | `GET /api/v1/students/:studentId/recommendations` | Temas prioritários e até 3 exercícios inéditos por tema              |
+
+`POST /api/v1/attempts/:attemptId/explanations` com `{"questionId":"..."}` devolve `{questionId, explanation, source}`. Só aceita questões **erradas** daquela tentativa do aluno demo (400 se acertada, 403/404 conforme acesso). `source` é `llm` ou `reference`: em timeout, erro ou saída inválida da LLM volta a explicação de referência, e nota, gabarito e recomendações nunca mudam. Nada gerado pela LLM é gravado. Com `AI_MODE=mock` não há rede nem chave (resposta determinística); com `real` usa a API da Anthropic.
 
 Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem detalhes internos.
 

@@ -1,11 +1,18 @@
 import { buildApp } from './app.js';
 import { loadEnv } from './config/env.js';
+import { createExplanationProvider } from './modules/ai/providers/index.js';
 import { createDataSource } from './database/data-source.js';
 
 const env = loadEnv();
 const dataSource = createDataSource(env.DATABASE_URL);
 await dataSource.initialize();
-const app = buildApp({ dataSource, demoStudentId: env.DEMO_STUDENT_ID, logger: true });
+const app = buildApp({
+  dataSource,
+  demoStudentId: env.DEMO_STUDENT_ID,
+  explanationProvider: createExplanationProvider(env),
+  aiTimeoutMs: env.AI_TIMEOUT_MS,
+  logger: true,
+});
 
 const shutdown = async (): Promise<void> => {
   await app.close();

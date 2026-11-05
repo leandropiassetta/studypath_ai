@@ -11,6 +11,8 @@ describe('loadEnv', () => {
       PORT: 3000,
       DATABASE_URL,
       DEMO_STUDENT_ID: '55555555-5555-4555-8555-555555555555',
+      AI_MODE: 'disabled',
+      AI_TIMEOUT_MS: 8000,
     });
   });
 
@@ -25,6 +27,16 @@ describe('loadEnv', () => {
 
   it('rejects a non-UUID DEMO_STUDENT_ID', () => {
     expect(() => loadEnv({ DATABASE_URL, DEMO_STUDENT_ID: 'abc' })).toThrow(/DEMO_STUDENT_ID/);
+  });
+
+  it('validates AI settings; real mode needs a key and model', () => {
+    expect(loadEnv({ DATABASE_URL, AI_MODE: 'mock' }).AI_MODE).toBe('mock');
+    expect(() => loadEnv({ DATABASE_URL, AI_MODE: 'nope' })).toThrow(/AI_MODE/);
+    expect(() => loadEnv({ DATABASE_URL, AI_MODE: 'real' })).toThrow(/LLM_API_KEY/);
+    expect(() => loadEnv({ DATABASE_URL, AI_MODE: 'real', LLM_API_KEY: 'k' })).toThrow(/LLM_MODEL/);
+    const env = loadEnv({ DATABASE_URL, AI_MODE: 'real', LLM_API_KEY: 'k', LLM_MODEL: 'm' });
+    expect(env).toMatchObject({ LLM_API_KEY: 'k', LLM_MODEL: 'm' });
+    expect(() => loadEnv({ DATABASE_URL, AI_TIMEOUT_MS: '5' })).toThrow(/AI_TIMEOUT_MS/);
   });
 
   it('requires a postgres DATABASE_URL', () => {

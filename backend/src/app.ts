@@ -1,5 +1,9 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
+import { ExplanationRepository } from './modules/ai/repository.js';
+import { explanationRoutes } from './modules/ai/routes.js';
+import { ExplanationService } from './modules/ai/service.js';
+import type { ExplanationProvider } from './modules/ai/providers/types.js';
 import { AttemptRepository } from './modules/attempts/repository.js';
 import { attemptRoutes } from './modules/attempts/routes.js';
 import { AttemptService } from './modules/attempts/service.js';
@@ -16,12 +20,17 @@ import { registerErrorHandling } from './shared/errors/error-handler.js';
 export interface AppOptions {
   dataSource: DataSource;
   demoStudentId: string;
+  /** null = AI disabled: explanations always come from the reference text. */
+  explanationProvider?: ExplanationProvider | null;
+  aiTimeoutMs?: number;
   logger?: boolean;
 }
 
 export function buildApp({
   dataSource,
   demoStudentId,
+  explanationProvider = null,
+  aiTimeoutMs = 8000,
   logger = false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({ logger });
@@ -41,6 +50,17 @@ export function buildApp({
   void app.register(
     recommendationRoutes(
       new RecommendationService(new RecommendationRepository(dataSource), demoStudentId),
+    ),
+    { prefix: '/api/v1' },
+  );
+  void app.register(
+    explanationRoutes(
+      new ExplanationService(
+        new ExplanationRepository(dataSource),
+        demoStudentId,
+        explanationProvider,
+        aiTimeoutMs,
+      ),
     ),
     { prefix: '/api/v1' },
   );
