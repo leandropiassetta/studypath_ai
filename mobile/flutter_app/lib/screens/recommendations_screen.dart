@@ -68,7 +68,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
-              'Bom desempenho! Nenhum assunto prioritário no momento.',
+              'Excelente! Você acertou tudo nos assuntos avaliados.',
               textAlign: TextAlign.center,
             ),
           ),
@@ -80,10 +80,18 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
             Text(
               'Avaliadas ${data.evaluatedAttempts} tentativa(s) recente(s).',
             ),
+            if (data.topics.every((t) => t.priority == 'LOW'))
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Nenhum assunto crítico, mas você errou algumas questões. '
+                  'Que tal revisar?',
+                ),
+              ),
             for (final t in data.topics) ...[
               const SizedBox(height: 12),
               Text(
-                '${t.topicName} • prioridade alta',
+                '${t.topicName} • ${t.priority == 'HIGH' ? 'prioridade alta' : 'revisão opcional'}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(

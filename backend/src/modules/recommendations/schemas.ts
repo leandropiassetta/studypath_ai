@@ -22,7 +22,7 @@ export const RecommendationsResponse = Type.Object({
     Type.Object({
       topicId: Type.String(),
       topicName: Type.String(),
-      priority: Type.Literal('HIGH'),
+      priority: Type.Union([Type.Literal('HIGH'), Type.Literal('LOW')]),
       correctCount: Type.Integer(),
       answeredCount: Type.Integer(),
       accuracyPct: Type.Number(),

@@ -31,13 +31,14 @@ Map<String, Object?> recs(String status, [List<Object> topics = const []]) => {
 };
 
 Map<String, Object?> topic({
+  String priority = 'HIGH',
   required String status,
   List<Object> suggested = const [],
   String? message,
 }) => {
   'topicId': 't',
   'topicName': 'Equações',
-  'priority': 'HIGH',
+  'priority': priority,
   'correctCount': 1,
   'answeredCount': 4,
   'accuracyPct': 25,
@@ -216,7 +217,7 @@ void main() {
 
     testWidgets('ON_TRACK', (tester) async {
       await show(tester, recs('ON_TRACK'));
-      expect(find.textContaining('Bom desempenho'), findsOneWidget);
+      expect(find.textContaining('Excelente'), findsOneWidget);
     });
 
     testWidgets('NEEDS_REVIEW lists suggested questions without answer key', (
@@ -245,6 +246,60 @@ void main() {
       expect(find.text('Acertos: 1/4 (25%)'), findsOneWidget);
       expect(find.textContaining('Quanto é x se x - 7 = 1?'), findsOneWidget);
       expect(find.textContaining('Correta'), findsNothing);
+    });
+
+    testWidgets(
+      'LOW priority is shown as optional review, not as high priority',
+      (tester) async {
+        await show(
+          tester,
+          recs('NEEDS_REVIEW', [
+            topic(
+              priority: 'LOW',
+              status: 'AVAILABLE',
+              suggested: [
+                {
+                  'id': 'x1',
+                  'statement': 'Quantos lados tem um hexágono?',
+                  'options': [
+                    {'key': 'A', 'text': '5'},
+                    {'key': 'B', 'text': '6'},
+                  ],
+                  'difficulty': 'easy',
+                },
+              ],
+            ),
+          ]),
+        );
+        expect(
+          find.textContaining('Equações • revisão opcional'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('prioridade alta'), findsNothing);
+        expect(
+          find.textContaining('você errou algumas questões'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Quantos lados tem um hexágono?'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('HIGH and LOW together: no "only optional" hint', (
+      tester,
+    ) async {
+      await show(
+        tester,
+        recs('NEEDS_REVIEW', [
+          topic(status: 'NO_NEW_QUESTIONS', message: 'm'),
+          topic(priority: 'LOW', status: 'NO_NEW_QUESTIONS', message: 'm'),
+        ]),
+      );
+      expect(find.textContaining('prioridade alta'), findsOneWidget);
+      expect(find.textContaining('revisão opcional'), findsOneWidget);
+      expect(find.textContaining('você errou algumas questões'), findsNothing);
     });
 
     testWidgets(

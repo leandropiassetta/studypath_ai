@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   overallStatus,
-  selectPriorityTopics,
+  selectReviewTopics,
   selectSuggestions,
   summarizeByTopic,
   type AnswerFact,
@@ -13,25 +13,42 @@ const facts = (topicId: string, name: string, correct: number, wrong: number): A
   ...Array.from({ length: wrong }, () => ({ topicId, topicName: name, isCorrect: false })),
 ];
 
-describe('selectPriorityTopics (RN-07)', () => {
-  it('flags 1/4 as HIGH and does not flag 3/4', () => {
-    const r = selectPriorityTopics([
+describe('selectReviewTopics (RN-07)', () => {
+  const priorities = (input: AnswerFact[]) =>
+    Object.fromEntries(selectReviewTopics(input).map((t) => [t.topicId, t.priority]));
+
+  it('flags 1/4 as HIGH and 3/4 as LOW (optional review), never HIGH', () => {
+    const r = selectReviewTopics([
       ...facts('E', 'Equações', 1, 3),
       ...facts('G', 'Geometria', 3, 1),
     ]);
-    expect(r.map((t) => t.topicId)).toEqual(['E']);
+    expect(r.map((t) => [t.topicId, t.priority])).toEqual([
+      ['E', 'HIGH'],
+      ['G', 'LOW'],
+    ]);
     expect(r[0]).toMatchObject({ correctCount: 1, answeredCount: 4, accuracyPct: 25 });
+    expect(r[1]).toMatchObject({ correctCount: 3, answeredCount: 4, accuracyPct: 75 });
   });
 
-  it('uses a strict 60% limit: 3/5 is not HIGH, 2/5 is, 5/9 (55.6%) is', () => {
-    expect(selectPriorityTopics(facts('T', 'T', 3, 2))).toEqual([]);
-    expect(selectPriorityTopics(facts('T', 'T', 2, 3))).toHaveLength(1);
-    expect(selectPriorityTopics(facts('T', 'T', 5, 4))).toHaveLength(1);
+  it('uses a strict 60% limit for HIGH: 3/5 is LOW, 2/5 and 5/9 (55.6%) are HIGH', () => {
+    expect(priorities(facts('T', 'T', 3, 2))).toEqual({ T: 'LOW' });
+    expect(priorities(facts('T', 'T', 2, 3))).toEqual({ T: 'HIGH' });
+    expect(priorities(facts('T', 'T', 5, 4))).toEqual({ T: 'HIGH' });
+  });
+
+  it('does not recommend topics answered perfectly', () => {
+    expect(selectReviewTopics(facts('T', 'T', 4, 0))).toEqual([]);
   });
 
   it('ignores topics with fewer than 2 answers, even at 0%', () => {
-    expect(selectPriorityTopics(facts('T', 'T', 0, 1))).toEqual([]);
-    expect(selectPriorityTopics(facts('T', 'T', 0, 2))).toHaveLength(1);
+    expect(selectReviewTopics(facts('T', 'T', 0, 1))).toEqual([]);
+    expect(priorities(facts('T', 'T', 0, 2))).toEqual({ T: 'HIGH' });
+    expect(selectReviewTopics(facts('T', 'T', 1, 0))).toEqual([]);
+  });
+
+  it('lists every HIGH topic before any LOW topic, even if a LOW has more answers', () => {
+    const r = selectReviewTopics([...facts('l', 'Lógica', 9, 1), ...facts('h', 'Álgebra', 1, 1)]);
+    expect(r.map((t) => t.topicId)).toEqual(['h', 'l']);
   });
 
   it('orders by accuracy asc, answered desc, name asc (stable and deterministic)', () => {
@@ -42,13 +59,13 @@ describe('selectPriorityTopics (RN-07)', () => {
       ...facts('z', 'Zeta', 0, 2), // 0%      (lowest accuracy first)
     ];
     const expected = ['z', 'a', 'b', 'c'];
-    expect(selectPriorityTopics(input).map((t) => t.topicId)).toEqual(expected);
-    expect(selectPriorityTopics([...input].reverse()).map((t) => t.topicId)).toEqual(expected);
+    expect(selectReviewTopics(input).map((t) => t.topicId)).toEqual(expected);
+    expect(selectReviewTopics([...input].reverse()).map((t) => t.topicId)).toEqual(expected);
   });
 
   it('compares accuracy exactly, not by rounded values', () => {
     // 1/3 = 33.33%, 2/6 = 33.33%: equal ratios fall through to answered count
-    const r = selectPriorityTopics([...facts('x', 'X', 1, 2), ...facts('y', 'Y', 2, 4)]);
+    const r = selectReviewTopics([...facts('x', 'X', 1, 2), ...facts('y', 'Y', 2, 4)]);
     expect(r.map((t) => t.topicId)).toEqual(['y', 'x']);
   });
 });
@@ -93,6 +110,7 @@ describe('overallStatus (RN-09)', () => {
   it('maps history and priority topics to a status', () => {
     expect(overallStatus(0, 0)).toBe('NO_HISTORY');
     expect(overallStatus(2, 0)).toBe('ON_TRACK');
+    expect(overallStatus(2, 1)).toBe('NEEDS_REVIEW'); // a LOW topic alone is enough
     expect(overallStatus(1, 1)).toBe('NEEDS_REVIEW');
   });
 });

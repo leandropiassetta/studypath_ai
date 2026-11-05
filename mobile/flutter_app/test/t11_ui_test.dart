@@ -271,7 +271,7 @@ void main() {
       await tester.tap(find.byKey(const Key('recommendations-button')));
       await tester.pumpAndSettle();
       expect(find.text('Recomendações'), findsOneWidget);
-      expect(find.textContaining('Bom desempenho'), findsOneWidget);
+      expect(find.textContaining('Excelente'), findsOneWidget);
 
       await tester.pageBack();
       await tester.pumpAndSettle();

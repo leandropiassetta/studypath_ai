@@ -3,6 +3,7 @@ import 'quiz.dart';
 class TopicRecommendation {
   const TopicRecommendation({
     required this.topicName,
+    required this.priority,
     required this.correctCount,
     required this.answeredCount,
     required this.accuracyPct,
@@ -14,6 +15,7 @@ class TopicRecommendation {
   factory TopicRecommendation.fromJson(Map<String, dynamic> json) =>
       TopicRecommendation(
         topicName: json['topicName'] as String,
+        priority: json['priority'] as String,
         correctCount: json['correctCount'] as int,
         answeredCount: json['answeredCount'] as int,
         accuracyPct: (json['accuracyPct'] as num).toDouble(),
@@ -25,6 +27,9 @@ class TopicRecommendation {
       );
 
   final String topicName;
+
+  /// `HIGH` (accuracy < 60%) or `LOW` (optional review: some mistakes, >= 60%).
+  final String priority;
   final int correctCount;
   final int answeredCount;
   final double accuracyPct;

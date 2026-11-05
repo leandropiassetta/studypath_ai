@@ -1,5 +1,5 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
-import { overallStatus, selectPriorityTopics, selectSuggestions } from './domain.js';
+import { overallStatus, selectReviewTopics, selectSuggestions } from './domain.js';
 import type { RecommendationRepository } from './repository.js';
 import type { RecommendationsView } from './schemas.js';
 
@@ -21,22 +21,22 @@ export class RecommendationService {
     }
 
     const history = await this.repo.recentHistory(studentId);
-    const priority = selectPriorityTopics(history.facts);
+    const review = selectReviewTopics(history.facts);
     const candidates = await this.repo.unansweredQuestions(
       studentId,
-      priority.map((t) => t.topicId),
+      review.map((t) => t.topicId),
     );
 
     return {
       studentId,
-      status: overallStatus(history.attempts, priority.length),
+      status: overallStatus(history.attempts, review.length),
       evaluatedAttempts: history.attempts,
-      topics: priority.map((t) => {
+      topics: review.map((t) => {
         const suggested = selectSuggestions(candidates.filter((c) => c.topicId === t.topicId));
         const available = suggested.length > 0;
         return {
           ...t,
-          priority: 'HIGH' as const,
+          priority: t.priority,
           status: available ? ('AVAILABLE' as const) : ('NO_NEW_QUESTIONS' as const),
           ...(available ? {} : { message: NO_NEW_QUESTIONS_MESSAGE }),
           suggestedQuestions: suggested.map((q) => ({

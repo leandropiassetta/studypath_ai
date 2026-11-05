@@ -61,15 +61,27 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     });
   });
 
-  it('CA-06: 1/4 in Equações is HIGH with 3 unseen questions; 3/4 in Geometria is not', async () => {
+  it('CA-06: 1/4 in Equações is HIGH with 3 unseen questions; 3/4 in Geometria is LOW, never HIGH', async () => {
     await submit(EQ_1_OF_4);
     const res = await recs();
     expect(res.statusCode).toBe(200);
     const out = res.json();
     expect(out.status).toBe('NEEDS_REVIEW');
     expect(out.evaluatedAttempts).toBe(1);
-    expect(out.topics).toHaveLength(1);
-    const [topic] = out.topics;
+    expect(
+      out.topics.map((t: { topicName: string; priority: string }) => [t.topicName, t.priority]),
+    ).toEqual([
+      ['Equações', 'HIGH'],
+      ['Geometria', 'LOW'],
+    ]);
+    const [topic, low] = out.topics;
+    expect(low).toMatchObject({
+      correctCount: 3,
+      answeredCount: 4,
+      accuracyPct: 75,
+      status: 'AVAILABLE',
+    });
+    expect(low.suggestedQuestions).toHaveLength(3);
     expect(topic).toMatchObject({
       topicId: EQ,
       topicName: 'Equações',
@@ -96,7 +108,18 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     expect(res.body).not.toMatch(/correct_?option|explanation/i);
   });
 
-  it('returns ON_TRACK when no topic is below the limit', async () => {
+  it('75% in both topics: NEEDS_REVIEW with only optional (LOW) reviews', async () => {
+    // one mistake per topic: Equações 3/4, Geometria 3/4
+    await submit(['B', 'B', 'C', 'A', 'B', 'C', 'B', 'A']);
+    const out = (await recs()).json();
+    expect(out.status).toBe('NEEDS_REVIEW');
+    expect(out.topics.map((t: { priority: string }) => t.priority)).toEqual(['LOW', 'LOW']);
+    expect(
+      out.topics.every((t: { suggestedQuestions: unknown[] }) => t.suggestedQuestions.length === 3),
+    ).toBe(true);
+  });
+
+  it('returns ON_TRACK only when there are no mistakes to review', async () => {
     await submit(CORRECT);
     const out = (await recs()).json();
     expect(out).toMatchObject({ status: 'ON_TRACK', evaluatedAttempts: 1, topics: [] });
@@ -105,6 +128,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
   it('CA-08: a priority topic without unseen questions returns NO_NEW_QUESTIONS', async () => {
     await submit(EQ_1_OF_4);
     // The student already answered the 3 extra Equações questions in an older attempt.
+    // (Geometria stays LOW and keeps its own suggestions.)
     const [{ id }] = await ds.query(
       `INSERT INTO attempts (student_id, quiz_id, request_id, payload_hash, correct_count, total_count, score_pct, submitted_at)
        VALUES ($1, $2, gen_random_uuid(), repeat('b', 64), 0, 3, 0, '2026-01-01T00:00:00Z') RETURNING id`,
@@ -119,9 +143,10 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
 
     const out = (await recs()).json();
     expect(out.evaluatedAttempts).toBe(2);
-    const [topic] = out.topics;
+    const topic = out.topics.find((t: { topicId: string }) => t.topicId === EQ);
     expect(topic).toMatchObject({
       topicId: EQ,
+      priority: 'HIGH',
       status: 'NO_NEW_QUESTIONS',
       suggestedQuestions: [],
       correctCount: 1,

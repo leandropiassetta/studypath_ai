@@ -63,6 +63,7 @@ void main() {
       'topics': [
         {
           'topicName': 'Equações',
+          'priority': 'LOW',
           'correctCount': 1,
           'answeredCount': 4,
           'accuracyPct': 25,
@@ -73,6 +74,7 @@ void main() {
       ],
     });
     expect(r.topics.single.message, 'Revise');
+    expect(r.topics.single.priority, 'LOW');
     expect(r.topics.single.suggestedQuestions, isEmpty);
   });
 

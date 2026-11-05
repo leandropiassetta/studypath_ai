@@ -95,11 +95,11 @@ Todas as chaves primárias usam UUID. Datas usam `timestamptz` em UTC. Criar ín
 
 **RN-06. Histórico para recomendação:** agrupar respostas das **cinco tentativas mais recentes** do aluno, de qualquer simulado, por tema. Tentativas repetidas com IDs diferentes são tentativas distintas.
 
-**RN-07. Prioridade:** somente temas com `answeredCount >= 2` e `accuracy = correctCount / answeredCount < 0.60` recebem prioridade `HIGH`. Ordenar temas elegíveis por taxa de acerto crescente, quantidade de respostas decrescente e nome do tema crescente. Regra heurística de MVP, não diagnóstico pedagógico validado.
+**RN-07. Prioridade:** somente temas com `answeredCount >= 2` e pelo menos um erro são recomendados. Com `accuracy = correctCount / answeredCount < 0.60` a prioridade é `HIGH`; com `0.60 <= accuracy < 1.00` é `LOW` (revisão opcional). Temas `HIGH` vêm antes dos `LOW`; dentro de cada prioridade, ordenar por taxa de acerto crescente, quantidade de respostas decrescente e nome do tema crescente. Regra heurística de MVP, não diagnóstico pedagógico validado. *(Revisão pós-T09: a faixa `LOW` foi acrescentada para que quem erra algumas questões sem cair abaixo de 60% não fique sem próximo passo.)*
 
 **RN-08. Seleção de exercícios:** para cada tema prioritário, sugerir até 3 questões que o aluno **nunca respondeu**, independentemente do simulado. Ordenar por dificuldade (`easy`, `medium`, `hard`), data de criação e ID. Não enviar gabarito. Sem questões disponíveis, retornar o tema com `status: NO_NEW_QUESTIONS`, lista vazia e mensagem de revisão.
 
-**RN-09. Estados especiais:** sem tentativas -> `NO_HISTORY`; com histórico, mas sem temas prioritários -> `ON_TRACK`; com temas prioritários -> `NEEDS_REVIEW`.
+**RN-09. Estados especiais:** sem tentativas -> `NO_HISTORY`; com histórico, mas sem nenhum tema a revisar (sem erros em temas elegíveis) -> `ON_TRACK`; com algum tema `HIGH` ou `LOW` -> `NEEDS_REVIEW`.
 
 **RN-10. Modo demo:** endpoint de estudante só aceita o ID fictício configurado; outros IDs recebem HTTP 403. A API deve ouvir `127.0.0.1` por padrão. Em produção pública, substituir por autenticação/autorização apropriadas.
 
@@ -218,7 +218,7 @@ Body ilustrativo abreviado: a requisição válida deve responder às 8 questõe
 }
 ```
 
-Sem histórico, devolver `status: "NO_HISTORY"`, `evaluatedAttempts: 0`, `topics: []`; desempenho satisfatório devolve `ON_TRACK`, `topics: []`. **403** para outro aluno no modo demo.
+Sem histórico, devolver `status: "NO_HISTORY"`, `evaluatedAttempts: 0`, `topics: []`; sem erros a revisar devolve `ON_TRACK`, `topics: []`. Cada tópico traz `priority: "HIGH" | "LOW"`. **403** para outro aluno no modo demo.
 
 ### `GET /health` (P0)
 
@@ -275,7 +275,7 @@ Não criar abstrações genéricas sem necessidade: classes e interfaces só qua
 - **CA-03:** Dada uma submissão com uma questão ausente ou duplicada, então a API devolve 400 e não grava tentativa.
 - **CA-04:** Dado `requestId` já processado, quando o mesmo payload chega de novo, então devolve o mesmo `attemptId` com HTTP 200 e não duplica respostas.
 - **CA-05:** Dado `requestId` reutilizado com respostas diferentes, então devolve HTTP 409 e não altera a tentativa original.
-- **CA-06:** Dado aluno com 1 acerto em 4 questões de Equações e 3 em 4 de Geometria, então recomenda Equações como prioridade HIGH e não marca Geometria como HIGH.
+- **CA-06:** Dado aluno com 1 acerto em 4 questões de Equações e 3 em 4 de Geometria, então recomenda Equações como prioridade HIGH e não marca Geometria como HIGH (Geometria, com 75%, aparece como `LOW`, revisão opcional).
 - **CA-07:** Dado histórico sem tentativas, então GET recomendações retorna `NO_HISTORY` e lista vazia.
 - **CA-08:** Dado tema prioritário sem novas questões, então retorna `NO_NEW_QUESTIONS` sem inventar exercícios.
 - **CA-09:** Dado estudante que não é o aluno fictício autorizado, então POST tentativa e GET recomendações retornam 403.

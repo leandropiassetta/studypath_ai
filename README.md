@@ -76,7 +76,7 @@ Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem deta
 1. Suba banco, API e app (comandos acima). Para começar do zero: `docker compose exec postgres psql -U studypath -d studypath -c "DELETE FROM attempts"`.
 2. No app, veja as 8 questões. Responda **1 de 4 certas em Equações** e **3 de 4 em Geometria** (gabarito por posição: B, B, C, C | B, C, B, B).
 3. Envie: o resultado mostra **50%**, correção por questão e resumo por assunto.
-4. Abra "Ver recomendações de estudo": **Equações** aparece com prioridade alta e 3 exercícios ainda não respondidos.
+4. Abra "Ver recomendações de estudo": **Equações** aparece com prioridade alta e **Geometria** (75%) como revisão opcional, cada um com 3 exercícios ainda não respondidos.
 5. Idempotência: `scripts/demo-replay.sh` envia o mesmo `requestId` duas vezes (HTTP 201 e depois 200, mesmo `attemptId`, sem duplicar respostas).
 6. Na tela de resultado, toque em "Explicar meu erro" numa questão errada. Com `AI_MODE=mock` (reinicie a API com essa variável) aparece "Explicação gerada por IA"; com a IA desligada ou indisponível, "Explicação de referência". A nota nunca muda.
 7. Decisões a explicar: correção determinística, transação, idempotência e IA restrita à explicação, com fallback.
@@ -94,6 +94,6 @@ Os testes de integração usam o banco isolado `studypath_test` (criado pelo Doc
 
 ## Limitações conhecidas
 
-- A regra de prioridade (>= 2 respostas e < 60% de acertos nas 5 últimas tentativas) é uma heurística de demonstração, sem validação pedagógica.
+- A regra de prioridade é uma heurística de demonstração, sem validação pedagógica: com >= 2 respostas nas 5 últimas tentativas, < 60% de acertos é `HIGH` e de 60% a 99% é `LOW` (revisão opcional).
 - Sem autenticação, cadastro ou ranking. O aluno vê recomendações, mas ainda não responde aos exercícios sugeridos.
 - O app Flutter tem apenas a plataforma web gerada; Android e iOS (`flutter create --platforms=android,ios .`) ficam para a etapa de testes em dispositivo.

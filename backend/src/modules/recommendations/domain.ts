@@ -1,5 +1,7 @@
 /** Pure domain logic for RN-06..RN-09: deterministic, no HTTP, no ORM, no LLM. */
 
+export type Priority = 'HIGH' | 'LOW';
+
 export const RECENT_ATTEMPTS_WINDOW = 5;
 export const MIN_ANSWERED = 2;
 /** Accuracy strictly below 60% is "low" (expressed as integers to avoid float error). */
@@ -20,6 +22,10 @@ export interface TopicPerformance {
   correctCount: number;
   answeredCount: number;
   accuracyPct: number;
+}
+
+export interface ReviewTopic extends TopicPerformance {
+  priority: Priority;
 }
 
 export interface CandidateQuestion {
@@ -55,24 +61,29 @@ export function summarizeByTopic(facts: AnswerFact[]): TopicPerformance[] {
   }));
 }
 
+const compareTopics = (a: TopicPerformance, b: TopicPerformance): number =>
+  // compare ratios exactly: a.c / a.n vs b.c / b.n
+  a.correctCount * b.answeredCount - b.correctCount * a.answeredCount ||
+  b.answeredCount - a.answeredCount ||
+  cmp(a.topicName, b.topicName);
+
 /**
- * RN-07: HIGH priority when answeredCount >= 2 and accuracy < 60%.
- * Order: accuracy ascending, answeredCount descending, topic name ascending.
+ * RN-07: topics with at least 2 answers and any mistake are worth reviewing.
+ *  - HIGH: accuracy < 60%.
+ *  - LOW ("optional review"): 60% <= accuracy < 100%.
+ * HIGH topics come first; inside each priority: accuracy ascending, answeredCount
+ * descending, topic name ascending.
  */
-export function selectPriorityTopics(facts: AnswerFact[]): TopicPerformance[] {
-  return summarizeByTopic(facts)
-    .filter(
-      (t) =>
-        t.answeredCount >= MIN_ANSWERED &&
-        t.correctCount * 100 < LOW_ACCURACY_PERCENT * t.answeredCount,
-    )
-    .sort(
-      (a, b) =>
-        // compare ratios exactly: a.c / a.n vs b.c / b.n
-        a.correctCount * b.answeredCount - b.correctCount * a.answeredCount ||
-        b.answeredCount - a.answeredCount ||
-        cmp(a.topicName, b.topicName),
-    );
+export function selectReviewTopics(facts: AnswerFact[]): ReviewTopic[] {
+  const eligible = summarizeByTopic(facts)
+    .filter((t) => t.answeredCount >= MIN_ANSWERED && t.correctCount < t.answeredCount)
+    .map<ReviewTopic>((t) => ({
+      ...t,
+      priority: t.correctCount * 100 < LOW_ACCURACY_PERCENT * t.answeredCount ? 'HIGH' : 'LOW',
+    }));
+  const byPriority = (p: Priority): ReviewTopic[] =>
+    eligible.filter((t) => t.priority === p).sort(compareTopics);
+  return [...byPriority('HIGH'), ...byPriority('LOW')];
 }
 
 /** RN-08: up to 3 questions ordered by difficulty, creation date and id. */
@@ -87,11 +98,11 @@ export function selectSuggestions<T extends CandidateQuestion>(candidates: T[]):
     .slice(0, MAX_SUGGESTIONS);
 }
 
-/** RN-09 */
+/** RN-09: ON_TRACK only when there is nothing to review (no mistakes in eligible topics). */
 export function overallStatus(
   evaluatedAttempts: number,
-  priorityTopics: number,
+  reviewTopics: number,
 ): RecommendationStatus {
   if (evaluatedAttempts === 0) return 'NO_HISTORY';
-  return priorityTopics > 0 ? 'NEEDS_REVIEW' : 'ON_TRACK';
+  return reviewTopics > 0 ? 'NEEDS_REVIEW' : 'ON_TRACK';
 }
