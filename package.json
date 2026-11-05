@@ -12,7 +12,11 @@
     "typecheck": "npm run typecheck -w backend",
     "test": "npm run test -w backend",
     "build": "npm run build -w backend",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:revert": "npm run db:revert -w backend"
   },
   "devDependencies": {
     "prettier": "^3.9.10"
