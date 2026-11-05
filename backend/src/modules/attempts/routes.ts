@@ -1,0 +1,16 @@
+import type { FastifyPluginAsync } from 'fastify';
+import type { AttemptService } from './service.js';
+import { AttemptResponse, CreateAttemptBody, type CreateAttemptInput } from './schemas.js';
+
+export const attemptRoutes =
+  (service: AttemptService): FastifyPluginAsync =>
+  async (app) => {
+    app.post<{ Body: CreateAttemptInput }>(
+      '/attempts',
+      { schema: { body: CreateAttemptBody, response: { 201: AttemptResponse } } },
+      async (req, reply) => {
+        const result = await service.submit(req.body);
+        return reply.status(201).send(result);
+      },
+    );
+  };

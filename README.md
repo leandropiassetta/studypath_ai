@@ -2,7 +2,7 @@
 
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. Especificação: [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-## Estado atual: T04 (GET simulado e health)
+## Estado atual: T05 (correção e POST de tentativas)
 
 Requisitos: Node >= 22, Docker.
 

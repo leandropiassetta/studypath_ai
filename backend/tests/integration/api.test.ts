@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
 import { buildApp } from '../../src/app.js';
 import { createDataSource } from '../../src/database/data-source.js';
+import { DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
 import { createSeededTestDb, TEST_DATABASE_URL } from '../helpers/test-db.js';
 
 let ds: DataSource;
@@ -13,7 +14,7 @@ beforeAll(async () => {
   await ds.query(
     `INSERT INTO quizzes (slug, title, is_active) VALUES ('inativo', 'Simulado inativo', false)`,
   );
-  app = buildApp({ dataSource: ds });
+  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
   app.get('/__boom', () => {
     throw new Error('secret database detail');
   });
@@ -100,7 +101,7 @@ describe('GET /health', () => {
     const closed = createDataSource(TEST_DATABASE_URL);
     await closed.initialize();
     await closed.destroy();
-    const downApp = buildApp({ dataSource: closed });
+    const downApp = buildApp({ dataSource: closed, demoStudentId: DEMO_STUDENT_ID });
     const res = await downApp.inject({ method: 'GET', url: '/health' });
     await downApp.close();
     expect(res.statusCode).toBe(503);

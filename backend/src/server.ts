@@ -5,7 +5,7 @@ import { createDataSource } from './database/data-source.js';
 const env = loadEnv();
 const dataSource = createDataSource(env.DATABASE_URL);
 await dataSource.initialize();
-const app = buildApp({ dataSource, logger: true });
+const app = buildApp({ dataSource, demoStudentId: env.DEMO_STUDENT_ID, logger: true });
 
 const shutdown = async (): Promise<void> => {
   await app.close();

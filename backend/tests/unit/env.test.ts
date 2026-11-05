@@ -10,6 +10,7 @@ describe('loadEnv', () => {
       HOST: '127.0.0.1',
       PORT: 3000,
       DATABASE_URL,
+      DEMO_STUDENT_ID: '55555555-5555-4555-8555-555555555555',
     });
   });
 
@@ -20,6 +21,10 @@ describe('loadEnv', () => {
   it('rejects invalid PORT', () => {
     expect(() => loadEnv({ DATABASE_URL, PORT: 'abc' })).toThrow(/Invalid environment/);
     expect(() => loadEnv({ DATABASE_URL, PORT: '70000' })).toThrow(/Invalid environment/);
+  });
+
+  it('rejects a non-UUID DEMO_STUDENT_ID', () => {
+    expect(() => loadEnv({ DATABASE_URL, DEMO_STUDENT_ID: 'abc' })).toThrow(/DEMO_STUDENT_ID/);
   });
 
   it('requires a postgres DATABASE_URL', () => {
