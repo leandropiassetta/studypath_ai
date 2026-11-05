@@ -2,7 +2,7 @@
 
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. Especificação: [docs/StudyPath_AI_SPEC.md](docs/StudyPath_AI_SPEC.md).
 
-## Estado atual: T07 (motor de recomendações)
+## Estado atual: T08 (app Flutter)
 
 Requisitos: Node >= 22, Docker.
 
@@ -27,3 +27,17 @@ O `docker compose` cria dois bancos: `studypath` (desenvolvimento) e `studypath_
 | Aluno demo | `55555555-5555-4555-8555-555555555555`                                                                |
 | Simulado   | `demo-matematica` (`11111111-1111-4111-8111-111111111111`), 8 questões: 4 de Equações, 4 de Geometria |
 | Extras     | 6 questões fora do simulado (3 por assunto), usadas nas recomendações                                 |
+
+### App Flutter (`mobile/flutter_app`)
+
+Requisitos: Flutter SDK estável. Com a API no ar (`npm run dev -w backend`):
+
+```bash
+cd mobile/flutter_app
+flutter pub get
+flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000
+# emulador Android: --dart-define=API_BASE_URL=http://10.0.2.2:3000
+flutter analyze && flutter test
+```
+
+A API aceita CORS apenas de origens `localhost` / `127.0.0.1` (necessário para o Flutter web).
