@@ -39,16 +39,17 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API s
 
 ### Variáveis de ambiente (`.env`)
 
-| Variável                    | Padrão                                 | Uso                                        |
-| --------------------------- | -------------------------------------- | ------------------------------------------ |
-| `DATABASE_URL`              | _(obrigatória)_                        | Conexão com o PostgreSQL                   |
-| `HOST` / `PORT`             | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback)     |
-| `APP_ENV`                   | `demo`                                 | Modo demo                                  |
-| `DEMO_STUDENT_ID`           | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                |
-| `AI_MODE`                   | `disabled`                             | `disabled`, `mock` ou `real` (explicações) |
-| `AI_TIMEOUT_MS`             | `8000`                                 | Timeout da chamada à LLM                   |
-| `LLM_API_KEY` / `LLM_MODEL` | _(só em `AI_MODE=real`)_               | Chave e modelo; nunca versione a chave     |
-| `API_BASE_URL`              | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`               |
+| Variável                    | Padrão                                 | Uso                                            |
+| --------------------------- | -------------------------------------- | ---------------------------------------------- |
+| `DATABASE_URL`              | _(obrigatória)_                        | Conexão com o PostgreSQL                       |
+| `HOST` / `PORT`             | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback)         |
+| `APP_ENV`                   | `demo`                                 | Modo demo                                      |
+| `DEMO_STUDENT_ID`           | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                    |
+| `AI_MODE`                   | `disabled`                             | `disabled`, `mock` ou `real` (explicações)     |
+| `AI_TIMEOUT_MS`             | `8000`                                 | Timeout da chamada à LLM                       |
+| `LLM_PROVIDER`              | `anthropic`                            | `anthropic` ou `openai` (só em `AI_MODE=real`) |
+| `LLM_API_KEY` / `LLM_MODEL` | _(só em `AI_MODE=real`)_               | Chave e modelo; nunca versione a chave         |
+| `API_BASE_URL`              | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`                   |
 
 ## Dados do seed (fictícios)
 
@@ -67,7 +68,7 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API s
 | `POST /api/v1/attempts`                           | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409 |
 | `GET /api/v1/students/:studentId/recommendations` | Temas prioritários e até 3 exercícios inéditos por tema              |
 
-`POST /api/v1/attempts/:attemptId/explanations` com `{"questionId":"..."}` devolve `{questionId, explanation, source}`. Só aceita questões **erradas** daquela tentativa do aluno demo (400 se acertada, 403/404 conforme acesso). `source` é `llm` ou `reference`: em timeout, erro ou saída inválida da LLM volta a explicação de referência, e nota, gabarito e recomendações nunca mudam. Nada gerado pela LLM é gravado. Com `AI_MODE=mock` não há rede nem chave (resposta determinística); com `real` usa a API da Anthropic.
+`POST /api/v1/attempts/:attemptId/explanations` com `{"questionId":"..."}` devolve `{questionId, explanation, source}`. Só aceita questões **erradas** daquela tentativa do aluno demo (400 se acertada, 403/404 conforme acesso). `source` é `llm` ou `reference`: em timeout, erro ou saída inválida da LLM volta a explicação de referência, e nota, gabarito e recomendações nunca mudam. Nada gerado pela LLM é gravado. Com `AI_MODE=mock` não há rede nem chave (resposta determinística); com `real` usa a API do provedor em `LLM_PROVIDER` (Anthropic ou OpenAI).
 
 Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem detalhes internos.
 

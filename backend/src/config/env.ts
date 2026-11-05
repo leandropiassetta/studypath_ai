@@ -13,6 +13,9 @@ const EnvSchema = Type.Object({
   AI_MODE: Type.Union([Type.Literal('disabled'), Type.Literal('mock'), Type.Literal('real')], {
     default: 'disabled',
   }),
+  LLM_PROVIDER: Type.Union([Type.Literal('anthropic'), Type.Literal('openai')], {
+    default: 'anthropic',
+  }),
   AI_TIMEOUT_MS: Type.Integer({ minimum: 100, maximum: 60000, default: 8000 }),
   LLM_API_KEY: Type.Optional(Type.String({ minLength: 1 })),
   LLM_MODEL: Type.Optional(Type.String({ minLength: 1 })),
@@ -32,6 +35,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       source.AI_TIMEOUT_MS === undefined || source.AI_TIMEOUT_MS === ''
         ? undefined
         : Number(source.AI_TIMEOUT_MS),
+    LLM_PROVIDER: source.LLM_PROVIDER || undefined,
     LLM_API_KEY: source.LLM_API_KEY || undefined,
     LLM_MODEL: source.LLM_MODEL || undefined,
   };

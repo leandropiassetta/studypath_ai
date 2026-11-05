@@ -8,6 +8,9 @@ import {
 } from '../../src/modules/ai/prompt.js';
 import { parseExplanation } from '../../src/modules/ai/validate.js';
 import { AnthropicExplanationProvider } from '../../src/modules/ai/providers/anthropic.js';
+import { OpenAIExplanationProvider } from '../../src/modules/ai/providers/openai.js';
+import { createExplanationProvider } from '../../src/modules/ai/providers/index.js';
+import { loadEnv } from '../../src/config/env.js';
 import { MockExplanationProvider } from '../../src/modules/ai/providers/mock.js';
 import { ExplanationService } from '../../src/modules/ai/service.js';
 import type {
@@ -112,6 +115,79 @@ describe('providers', () => {
     });
     const err = await provider.explain(input, new AbortController().signal).catch((e: Error) => e);
     expect((err as Error).message).toBe('LLM request failed with status 401');
+  });
+});
+
+describe('OpenAI provider', () => {
+  it('sends the key as a bearer header, never in the body, and extracts the message', async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      void init;
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: '{"explanation":"ok"}' } }] }),
+        { status: 200 },
+      );
+    });
+    const provider = new OpenAIExplanationProvider({
+      apiKey: 'sk-test-secret',
+      model: 'model-x',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      baseUrl: 'http://llm.test',
+    });
+    const out = await provider.explain(input, new AbortController().signal);
+    expect(parseExplanation(out)).toBe('ok');
+
+    const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://llm.test/v1/chat/completions');
+    expect((init.headers as Record<string, string>).authorization).toBe('Bearer sk-test-secret');
+    expect(String(init.body)).not.toContain('sk-test-secret');
+    const body = JSON.parse(String(init.body));
+    expect(body.model).toBe('model-x');
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.messages.map((m: { role: string }) => m.role)).toEqual(['system', 'user']);
+    expect(body.messages[1].content).toContain('<question_data>');
+  });
+
+  it('errors expose the status only, never body or key', async () => {
+    const fetchImpl = (async () =>
+      new Response('{"error":{"message":"Incorrect API key sk-test-secret"}}', {
+        status: 401,
+      })) as unknown as typeof fetch;
+    const provider = new OpenAIExplanationProvider({
+      apiKey: 'sk-test-secret',
+      model: 'm',
+      fetchImpl,
+    });
+    const err = await provider.explain(input, new AbortController().signal).catch((e: Error) => e);
+    expect((err as Error).message).toBe('LLM request failed with status 401');
+  });
+
+  it('empty or missing content becomes null (rejected later, falls back)', async () => {
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: null } }] }), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    const provider = new OpenAIExplanationProvider({ apiKey: 'k', model: 'm', fetchImpl });
+    expect(await provider.explain(input, new AbortController().signal)).toBeNull();
+  });
+});
+
+describe('createExplanationProvider', () => {
+  const base = {
+    DATABASE_URL: 'postgres://u:p@127.0.0.1:5432/db',
+    LLM_API_KEY: 'k',
+    LLM_MODEL: 'm',
+  };
+  it('selects the provider from LLM_PROVIDER in real mode', () => {
+    expect(
+      createExplanationProvider(loadEnv({ ...base, AI_MODE: 'real', LLM_PROVIDER: 'openai' })),
+    ).toBeInstanceOf(OpenAIExplanationProvider);
+    expect(createExplanationProvider(loadEnv({ ...base, AI_MODE: 'real' }))).toBeInstanceOf(
+      AnthropicExplanationProvider,
+    );
+    expect(createExplanationProvider(loadEnv({ ...base, AI_MODE: 'mock' }))).toBeInstanceOf(
+      MockExplanationProvider,
+    );
+    expect(createExplanationProvider(loadEnv({ ...base, AI_MODE: 'disabled' }))).toBeNull();
   });
 });
 

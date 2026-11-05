@@ -12,6 +12,7 @@ describe('loadEnv', () => {
       DATABASE_URL,
       DEMO_STUDENT_ID: '55555555-5555-4555-8555-555555555555',
       AI_MODE: 'disabled',
+      LLM_PROVIDER: 'anthropic',
       AI_TIMEOUT_MS: 8000,
     });
   });
@@ -37,6 +38,8 @@ describe('loadEnv', () => {
     const env = loadEnv({ DATABASE_URL, AI_MODE: 'real', LLM_API_KEY: 'k', LLM_MODEL: 'm' });
     expect(env).toMatchObject({ LLM_API_KEY: 'k', LLM_MODEL: 'm' });
     expect(() => loadEnv({ DATABASE_URL, AI_TIMEOUT_MS: '5' })).toThrow(/AI_TIMEOUT_MS/);
+    expect(loadEnv({ DATABASE_URL, LLM_PROVIDER: 'openai' }).LLM_PROVIDER).toBe('openai');
+    expect(() => loadEnv({ DATABASE_URL, LLM_PROVIDER: 'other' })).toThrow(/LLM_PROVIDER/);
   });
 
   it('requires a postgres DATABASE_URL', () => {
