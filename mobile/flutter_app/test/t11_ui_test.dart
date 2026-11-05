@@ -109,6 +109,24 @@ Future<void> pumpApp(WidgetTester tester, MockClient mock) async {
 }
 
 void main() {
+  test('Explanation parses the optional usage-limit notice', () {
+    final e = Explanation.fromJson({
+      'questionId': 'q',
+      'explanation': 'e',
+      'source': 'reference',
+      'notice': 'n',
+    });
+    expect(e.notice, 'n');
+    expect(
+      Explanation.fromJson({
+        'questionId': 'q',
+        'explanation': 'e',
+        'source': 'llm',
+      }).notice,
+      isNull,
+    );
+  });
+
   test('Explanation parses and flags AI vs reference', () {
     final ai = Explanation.fromJson({
       'questionId': 'q',
@@ -202,6 +220,46 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Explicação de referência'), findsOneWidget);
       expect(find.text('Explicação gerada por IA'), findsNothing);
+    });
+
+    testWidgets(
+      'a usage-limit notice explains why the reference text is shown',
+      (tester) async {
+        await pumpApp(
+          tester,
+          mockWith(
+            (_) async => json({
+              'questionId': 'q1',
+              'explanation': 'Subtraia 2.',
+              'source': 'reference',
+              'notice': 'Limite de explicações por IA atingido (24 h).',
+            }),
+          ),
+        );
+        await answerAndSubmit(tester);
+        await tester.tap(find.byKey(const Key('explain-q1')));
+        await tester.pumpAndSettle();
+        expect(find.text('Explicação de referência'), findsOneWidget);
+        expect(find.byKey(const Key('notice-q1')), findsOneWidget);
+        expect(
+          find.text('Limite de explicações por IA atingido (24 h).'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('no notice is shown for a normal explanation', (tester) async {
+      await pumpApp(
+        tester,
+        mockWith(
+          (_) async =>
+              json({'questionId': 'q1', 'explanation': 'ok', 'source': 'llm'}),
+        ),
+      );
+      await answerAndSubmit(tester);
+      await tester.tap(find.byKey(const Key('explain-q1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('notice-q1')), findsNothing);
     });
 
     testWidgets('shows a spinner while loading, then error with retry', (

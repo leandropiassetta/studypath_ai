@@ -79,6 +79,15 @@ class _ExplanationTileState extends State<ExplanationTile> {
               visualDensity: VisualDensity.compact,
             ),
             Text(explanation.explanation),
+            if (explanation.notice != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  explanation.notice!,
+                  key: Key('notice-${widget.questionId}'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
           ],
         ),
       );

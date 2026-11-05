@@ -4,6 +4,7 @@ import { ExplanationRepository } from './modules/ai/repository.js';
 import { explanationRoutes } from './modules/ai/routes.js';
 import { ExplanationService } from './modules/ai/service.js';
 import type { ExplanationProvider } from './modules/ai/providers/types.js';
+import type { UsageLimits } from './modules/ai/usage.js';
 import { AttemptRepository } from './modules/attempts/repository.js';
 import { attemptRoutes } from './modules/attempts/routes.js';
 import { AttemptService } from './modules/attempts/service.js';
@@ -26,6 +27,8 @@ export interface AppOptions {
   /** null = AI disabled: explanations always come from the reference text. */
   explanationProvider?: ExplanationProvider | null;
   aiTimeoutMs?: number;
+  /** Per-student cost guards for the LLM endpoint (defaults: 6 per minute, 50 per 24 h). */
+  aiLimits?: UsageLimits;
   logger?: boolean;
 }
 
@@ -34,6 +37,7 @@ export function buildApp({
   demoStudentId,
   explanationProvider = null,
   aiTimeoutMs = 8000,
+  aiLimits,
   logger = false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -78,6 +82,7 @@ export function buildApp({
         demoStudentId,
         explanationProvider,
         aiTimeoutMs,
+        aiLimits,
       ),
     ),
     { prefix: '/api/v1' },

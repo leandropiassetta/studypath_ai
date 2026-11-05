@@ -11,6 +11,10 @@ const app = buildApp({
   demoStudentId: env.DEMO_STUDENT_ID,
   explanationProvider: createExplanationProvider(env),
   aiTimeoutMs: env.AI_TIMEOUT_MS,
+  aiLimits: {
+    perMinute: env.AI_MAX_CALLS_PER_MINUTE,
+    perDay: env.AI_MAX_CALLS_PER_DAY,
+  },
   logger: true,
 });
 

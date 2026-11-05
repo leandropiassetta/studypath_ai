@@ -11,5 +11,7 @@ export const ExplanationResponse = Type.Object({
   questionId: Type.String(),
   explanation: Type.String(),
   source: Type.Union([Type.Literal('llm'), Type.Literal('reference')]),
+  /** Present when the LLM was skipped on purpose (usage limit), so the UI can explain why. */
+  notice: Type.Optional(Type.String()),
 });
 export type ExplanationView = Static<typeof ExplanationResponse>;

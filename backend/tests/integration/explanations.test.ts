@@ -12,8 +12,8 @@ const QUESTION_IDS = Array.from(
   { length: 8 },
   (_, i) => `22222222-2222-4222-8222-${String(i + 1).padStart(12, '0')}`,
 );
-// Correct: B B C C B C B B. Wrong on q2 (A), correct on q1 (B).
-const PICKS = ['B', 'A', 'C', 'C', 'B', 'C', 'B', 'B'];
+// Correct: B B C C B C B B. Wrong on q2 and q8 (A), correct on q1 (B).
+const PICKS = ['B', 'A', 'C', 'C', 'B', 'C', 'B', 'A']; // wrong: q2 and q8
 
 let ds: DataSource;
 const apps: FastifyInstance[] = [];
@@ -124,6 +124,40 @@ describe('POST /api/v1/attempts/:attemptId/explanations', () => {
     const before = await snapshot();
     expect((await explain(app, attemptId, QUESTION_IDS[1]!)).statusCode).toBe(200);
     expect(await snapshot()).toEqual(before);
+  });
+
+  it('applies usage limits over HTTP: cache is free, past the limit the reference comes with a notice', async () => {
+    let calls = 0;
+    const provider: ExplanationProvider = {
+      explain: async () => {
+        calls += 1;
+        return { explanation: `texto ${calls}` };
+      },
+    };
+    const app = buildApp({
+      dataSource: ds,
+      demoStudentId: DEMO_STUDENT_ID,
+      explanationProvider: provider,
+      aiTimeoutMs: 500,
+      aiLimits: { perMinute: 1, perDay: 50 },
+    });
+    apps.push(app);
+    const attemptId = await submit(app);
+
+    const first = await explain(app, attemptId, QUESTION_IDS[1]!);
+    expect(first.json()).toMatchObject({ source: 'llm', explanation: 'texto 1' });
+    expect(first.json().notice).toBeUndefined();
+
+    // Same question again: served from the cache, no new LLM call, no notice.
+    const again = await explain(app, attemptId, QUESTION_IDS[1]!);
+    expect(again.json()).toMatchObject({ source: 'llm', explanation: 'texto 1' });
+
+    // A different question exceeds the per-minute limit: reference + notice, still HTTP 200.
+    const limited = await explain(app, attemptId, QUESTION_IDS[7]!);
+    expect(limited.statusCode).toBe(200);
+    expect(limited.json().source).toBe('reference');
+    expect(limited.json().notice).toEqual(expect.any(String));
+    expect(calls).toBe(1);
   });
 
   it('returns 400 for a question answered correctly', async () => {
