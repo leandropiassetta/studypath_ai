@@ -198,6 +198,108 @@ describe('POST /api/v1/attempts', () => {
   });
 });
 
+describe('idempotency (RN-05)', () => {
+  const rid = '44444444-4444-4444-8444-4444444444aa';
+
+  it('CA-04: identical replay returns 200 with the same attemptId and no duplicate rows', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    expect(first.statusCode).toBe(201);
+    const second = await post(body(CORRECT, { requestId: rid }));
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expect(await count('attempts')).toBe(1);
+    expect(await count('attempt_answers')).toBe(8);
+  });
+
+  it('treats a replay with answers in a different order as identical', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    const reversed = body(CORRECT, { requestId: rid });
+    (reversed.answers as unknown[]).reverse();
+    const second = await post(reversed);
+    expect(second.statusCode).toBe(200);
+    expect(second.json().attemptId).toBe(first.json().attemptId);
+  });
+
+  it('CA-05: same requestId with different answers returns 409 and keeps the original', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    const conflict = await post(body(WRONG, { requestId: rid }));
+    expect(conflict.statusCode).toBe(409);
+    expect(conflict.json().error.code).toBe('REQUEST_ID_CONFLICT');
+    expect(await count('attempts')).toBe(1);
+    const [row] = await ds.query(`SELECT correct_count FROM attempts WHERE id = $1`, [
+      first.json().attemptId,
+    ]);
+    expect(row.correct_count).toBe(8);
+  });
+
+  it('replays the stored result even if the answer key changes later', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    await ds.query(`UPDATE questions SET correct_option = 'A' WHERE id = $1`, [QUESTION_IDS[0]]);
+    try {
+      const replay = await post(body(CORRECT, { requestId: rid }));
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json().correctCount).toBe(first.json().correctCount);
+      expect(replay.json().answers[0].isCorrect).toBe(true);
+    } finally {
+      await ds.query(`UPDATE questions SET correct_option = 'B' WHERE id = $1`, [QUESTION_IDS[0]]);
+    }
+  });
+
+  it('a rejected submission does not consume the requestId (safe retry after 400)', async () => {
+    const bad = await post(
+      body(CORRECT, { requestId: rid, answers: (body(CORRECT).answers as object[]).slice(1) }),
+    );
+    expect(bad.statusCode).toBe(400);
+    const ok = await post(body(CORRECT, { requestId: rid }));
+    expect(ok.statusCode).toBe(201);
+  });
+
+  it('the same requestId from the same payload but a different quiz is a conflict, not a replay', async () => {
+    await post(body(CORRECT, { requestId: rid }));
+    const other = await post(
+      body(CORRECT, { requestId: rid, quizId: '99999999-9999-4999-8999-999999999999' }),
+    );
+    expect(other.statusCode).toBe(404); // unknown quiz is rejected before idempotency
+  });
+
+  it('concurrent identical requests create exactly one attempt (one 201, the rest 200)', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => post(body(CORRECT, { requestId: rid }))),
+    );
+    const codes = responses.map((r) => r.statusCode).sort();
+    expect(codes).toEqual([200, 200, 200, 200, 200, 200, 200, 200, 200, 201]);
+    expect(new Set(responses.map((r) => r.json().attemptId)).size).toBe(1);
+    expect(await count('attempts')).toBe(1);
+    expect(await count('attempt_answers')).toBe(8);
+  });
+
+  it('concurrent requests with the same requestId and different payloads: one 201, the rest 409', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        post(body(i % 2 === 0 ? CORRECT : WRONG, { requestId: rid })),
+      ),
+    );
+    const created = responses.filter((r) => r.statusCode === 201);
+    expect(created).toHaveLength(1);
+    const winnerHash = (await ds.query<{ id: string }[]>(`SELECT id FROM attempts`))[0]?.id;
+    expect(created[0]?.json().attemptId).toBe(winnerHash);
+    for (const r of responses) expect([200, 201, 409]).toContain(r.statusCode);
+    expect(responses.filter((r) => r.statusCode === 409).length).toBeGreaterThan(0);
+    expect(await count('attempts')).toBe(1);
+    expect(await count('attempt_answers')).toBe(8);
+  });
+
+  it('the same requestId is independent per student', async () => {
+    const res = await post(body(CORRECT, { requestId: rid }));
+    expect(res.statusCode).toBe(201);
+    // unique key is (student_id, request_id): a second student could reuse it
+    const [{ indexdef }] = await ds.query(
+      `SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_attempts_student_request'`,
+    );
+    expect(indexdef).toContain('(student_id, request_id)');
+  });
+});
+
 describe('transaction rollback (RN-04)', () => {
   it('leaves no partial attempt when persisting answers fails', async () => {
     const repo = new AttemptRepository(ds);

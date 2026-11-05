@@ -7,10 +7,15 @@ export const attemptRoutes =
   async (app) => {
     app.post<{ Body: CreateAttemptInput }>(
       '/attempts',
-      { schema: { body: CreateAttemptBody, response: { 201: AttemptResponse } } },
+      {
+        schema: {
+          body: CreateAttemptBody,
+          response: { 200: AttemptResponse, 201: AttemptResponse },
+        },
+      },
       async (req, reply) => {
-        const result = await service.submit(req.body);
-        return reply.status(201).send(result);
+        const { created, result } = await service.submit(req.body);
+        return reply.status(created ? 201 : 200).send(result);
       },
     );
   };

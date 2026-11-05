@@ -78,10 +78,13 @@ export function validateAnswers(
 /**
  * RN-03: grade against the stored key. Input must already be valid (see validateAnswers).
  * `questions` must be in quiz order; answers and topic results follow that order.
+ * `storedCorrectness` (replays) reuses the persisted isCorrect instead of re-grading, so a
+ * replay always matches the original response even if the answer key changed later.
  */
 export function gradeAttempt(
   questions: QuestionKey[],
   submitted: SubmittedAnswer[],
+  storedCorrectness?: ReadonlyMap<string, boolean>,
 ): GradedAttempt {
   const selected = new Map(submitted.map((a) => [a.questionId, a.selectedOption]));
   const topics = new Map<string, TopicResult>();
@@ -90,7 +93,7 @@ export function gradeAttempt(
 
   for (const q of questions) {
     const selectedOption = selected.get(q.id) ?? '';
-    const isCorrect = selectedOption === q.correctOption;
+    const isCorrect = storedCorrectness?.get(q.id) ?? selectedOption === q.correctOption;
     if (isCorrect) correctCount += 1;
     answers.push({
       questionId: q.id,

@@ -1,6 +1,6 @@
 import type { DataSource } from 'typeorm';
 import { Attempt, AttemptAnswer, Quiz, Student } from '../../database/entities/index.js';
-import type { GradedAttempt, QuestionKey } from './domain.js';
+import type { GradedAttempt, QuestionKey, SubmittedAnswer } from './domain.js';
 
 interface KeyRow {
   id: string;
@@ -18,6 +18,25 @@ export interface NewAttempt {
   payloadHash: string;
   graded: GradedAttempt;
 }
+
+export interface StoredAttempt {
+  id: string;
+  quizId: string;
+  payloadHash: string;
+}
+
+/** Thrown when (student_id, request_id) already exists: a concurrent or repeated submission. */
+export class DuplicateRequestError extends Error {
+  constructor() {
+    super('duplicate request');
+    this.name = 'DuplicateRequestError';
+  }
+}
+
+const isDuplicateRequest = (err: unknown): boolean => {
+  const driver = (err as { driverError?: { code?: string; constraint?: string } }).driverError;
+  return driver?.code === '23505' && driver.constraint === 'uq_attempts_student_request';
+};
 
 export class AttemptRepository {
   constructor(private readonly ds: DataSource) {}
@@ -52,8 +71,36 @@ export class AttemptRepository {
     }));
   }
 
-  /** RN-04: attempt and answers are written in one transaction; any failure rolls both back. */
-  createAttempt(input: NewAttempt): Promise<string> {
+  async findByRequest(studentId: string, requestId: string): Promise<StoredAttempt | null> {
+    const row = await this.ds.getRepository(Attempt).findOneBy({ studentId, requestId });
+    return row ? { id: row.id, quizId: row.quizId, payloadHash: row.payloadHash } : null;
+  }
+
+  /** Persisted selections and correctness of an attempt, for replaying the original result. */
+  async getStoredAnswers(
+    attemptId: string,
+  ): Promise<{ answers: SubmittedAnswer[]; correctness: Map<string, boolean> }> {
+    const rows = await this.ds.getRepository(AttemptAnswer).findBy({ attemptId });
+    return {
+      answers: rows.map((r) => ({ questionId: r.questionId, selectedOption: r.selectedOption })),
+      correctness: new Map(rows.map((r) => [r.questionId, r.isCorrect])),
+    };
+  }
+
+  /**
+   * RN-04: attempt and answers are written in one transaction; any failure rolls both back.
+   * RN-05: a unique violation on (student_id, request_id) becomes DuplicateRequestError.
+   */
+  async createAttempt(input: NewAttempt): Promise<string> {
+    try {
+      return await this.insertAttempt(input);
+    } catch (err) {
+      if (isDuplicateRequest(err)) throw new DuplicateRequestError();
+      throw err;
+    }
+  }
+
+  private insertAttempt(input: NewAttempt): Promise<string> {
     const { graded } = input;
     return this.ds.transaction(async (m) => {
       const inserted = await m.insert(Attempt, {
