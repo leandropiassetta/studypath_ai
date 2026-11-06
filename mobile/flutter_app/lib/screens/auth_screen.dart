@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -56,9 +58,22 @@ String? validateExistingPassword(String? value) =>
     (value == null || value.isEmpty) ? 'Informe sua senha' : null;
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, required this.controller});
+  const AuthScreen({
+    super.key,
+    required this.controller,
+    this.wakeServer = false,
+    this.wakeTimeout = const Duration(seconds: 90),
+    this.wakeBannerDelay = const Duration(milliseconds: 1200),
+  });
 
   final SessionController controller;
+
+  /// Ask a possibly sleeping server to wake up while the form is on screen.
+  final bool wakeServer;
+  final Duration wakeTimeout;
+
+  /// Wait this long before telling the user (a healthy server answers well before).
+  final Duration wakeBannerDelay;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -73,6 +88,11 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
+  bool _waking = false;
+  bool _wakeBanner = false;
+  bool _wakeFailed = false;
+  Timer? _bannerTimer;
+
   AuthMode _mode = AuthMode.login;
   AccountType _type = AccountType.student;
   bool _hidePassword = true;
@@ -84,7 +104,32 @@ class _AuthScreenState extends State<AuthScreen> {
   bool get _isTeacherSignup => _isRegister && _type == AccountType.teacher;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.wakeServer) _wake();
+  }
+
+  Future<void> _wake() async {
+    setState(() {
+      _waking = true;
+      _wakeFailed = false;
+    });
+    _bannerTimer = Timer(widget.wakeBannerDelay, () {
+      if (mounted && _waking) setState(() => _wakeBanner = true);
+    });
+    final awake = await widget.controller.wakeUp(timeout: widget.wakeTimeout);
+    _bannerTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _waking = false;
+      _wakeBanner = false;
+      _wakeFailed = !awake;
+    });
+  }
+
+  @override
   void dispose() {
+    _bannerTimer?.cancel();
     _name.dispose();
     _email.dispose();
     _password.dispose();
@@ -187,6 +232,23 @@ class _AuthScreenState extends State<AuthScreen> {
                           : (selection) => _setMode(selection.first),
                     ),
                     const SizedBox(height: 16),
+                    if (_wakeBanner)
+                      const _Banner(
+                        key: Key('server-waking'),
+                        message:
+                            'Acordando o servidor… na hospedagem gratuita isso pode levar até '
+                            'um minuto. Você já pode preencher o formulário.',
+                      ),
+                    if (_wakeFailed)
+                      _Banner(
+                        key: const Key('server-unreachable'),
+                        message:
+                            'Não consegui falar com o servidor. Verifique sua conexão e tente '
+                            'de novo.',
+                        isError: true,
+                        actionLabel: 'Tentar de novo',
+                        onAction: _wake,
+                      ),
                     if (notice != null && _error == null)
                       _Banner(key: const Key('auth-notice'), message: notice),
                     if (_error != null)
@@ -327,7 +389,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 20),
                     FilledButton(
                       key: const Key('auth-submit'),
-                      onPressed: _submitting ? null : _submit,
+                      onPressed: (_submitting || _waking) ? null : _submit,
                       child: _submitting
                           ? const SizedBox(
                               height: 20,
@@ -354,14 +416,25 @@ class _AuthScreenState extends State<AuthScreen> {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({super.key, required this.message, this.isError = false});
+  const _Banner({
+    super.key,
+    required this.message,
+    this.isError = false,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String message;
   final bool isError;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color = isError
+        ? scheme.onErrorContainer
+        : scheme.onSecondaryContainer;
     return Semantics(
       liveRegion: true, // screen readers announce it when it appears
       child: Container(
@@ -371,13 +444,13 @@ class _Banner extends StatelessWidget {
           color: isError ? scheme.errorContainer : scheme.secondaryContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? scheme.onErrorContainer
-                : scheme.onSecondaryContainer,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: TextStyle(color: color)),
+            if (actionLabel != null)
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
         ),
       ),
     );

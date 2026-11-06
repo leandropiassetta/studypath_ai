@@ -112,6 +112,19 @@ class ApiClient {
     }
   }
 
+  /// Wakes a sleeping server (free hosting plans stop the API after 15 idle minutes and take up to a
+  /// minute to start it again). Returns true as soon as the server answers anything, false if it
+  /// does not answer within [timeout]. Never throws.
+  Future<bool> wakeUp({Duration timeout = const Duration(seconds: 90)}) async {
+    try {
+      final root = baseUrl.replaceAll(RegExp(r'/+$'), '');
+      await _client.get(Uri.parse('$root/health')).timeout(timeout);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Tolerates a trailing slash in API_BASE_URL (".../" would otherwise give "//api/v1").
   Uri _uri(String path) =>
       Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1$path');

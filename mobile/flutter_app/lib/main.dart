@@ -10,7 +10,14 @@ import 'services/theme_controller.dart';
 
 void main() {
   final api = ApiClient(baseUrl: apiBaseUrl);
-  runApp(StudyPathApp(api: api, session: SessionController(api)));
+  runApp(
+    StudyPathApp(
+      api: api,
+      session: SessionController(api),
+      // A deployed API may be asleep: wake it up while the login screen is already open.
+      wakeServer: true,
+    ),
+  );
 }
 
 ThemeData _buildTheme(Brightness brightness) => ThemeData(
@@ -25,10 +32,14 @@ class StudyPathApp extends StatefulWidget {
     required this.api,
     required this.session,
     this.theme,
+    this.wakeServer = false,
   });
 
   final ApiClient api;
   final SessionController session;
+
+  /// Wake a sleeping server when the login screen opens (off in tests and local runs by default).
+  final bool wakeServer;
 
   /// Injectable for tests; by default it starts from the system theme and then keeps the choice.
   final ThemeController? theme;
@@ -60,7 +71,12 @@ class _StudyPathAppState extends State<StudyPathApp> {
         listenable: widget.session,
         builder: (context, _) {
           final current = widget.session.session;
-          if (current == null) return AuthScreen(controller: widget.session);
+          if (current == null) {
+            return AuthScreen(
+              controller: widget.session,
+              wakeServer: widget.wakeServer,
+            );
+          }
           // Teachers get the doubt queue; students pick a subject. The server enforces the same rule.
           if (current.student.isTeacher) {
             return TeacherQueueScreen(

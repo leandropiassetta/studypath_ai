@@ -41,6 +41,10 @@ class SessionController extends ChangeNotifier {
     );
   }
 
+  /// See [ApiClient.wakeUp].
+  Future<bool> wakeUp({Duration timeout = const Duration(seconds: 90)}) =>
+      _api.wakeUp(timeout: timeout);
+
   Future<void> logout() async {
     await _api.logout();
     _session = null;
