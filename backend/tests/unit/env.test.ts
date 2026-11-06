@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { loadEnv } from '../../src/config/env.js';
 
@@ -103,5 +104,67 @@ describe('loadEnv: teacher invite code', () => {
     expect(() => loadEnv({ DATABASE_URL, TEACHER_INVITE_CODE: 'curto' })).toThrow(
       /TEACHER_INVITE_CODE/,
     );
+  });
+});
+
+describe('.env.example', () => {
+  const text = readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8');
+  /** Active settings only (commented ones are documentation). */
+  const active = Object.fromEntries(
+    text
+      .split('\n')
+      .map((l) => /^([A-Z0-9_]+)=(.*)$/.exec(l))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => [m[1] as string, m[2] as string]),
+  );
+  /** Every name the app reads, active or commented in the example. */
+  const documented = new Set(
+    [...text.matchAll(/^#?\s?([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1] as string),
+  );
+
+  it('is a valid configuration as it is, so copying it works without changes', () => {
+    const env = loadEnv(active);
+    expect(env.AI_MODE).toBe('disabled'); // safe default: no key needed
+    expect(env.HOST).toBe('127.0.0.1');
+  });
+
+  it('documents every setting the API reads', () => {
+    const all = [
+      'APP_ENV',
+      'HOST',
+      'PORT',
+      'DATABASE_URL',
+      'REDIS_URL',
+      'SLA_DELAY_MS',
+      'AI_MODE',
+      'AI_TIMEOUT_MS',
+      'AI_MAX_CALLS_PER_MINUTE',
+      'AI_MAX_CALLS_PER_DAY',
+      'LLM_PROVIDER',
+      'LLM_BASE_URL',
+      'LLM_MODEL',
+      'LLM_API_KEY',
+      'SESSION_TTL_DAYS',
+      'TEACHER_INVITE_CODE',
+      'DEMO_EMAIL',
+      'DEMO_PASSWORD',
+      'TEACHER_EMAIL',
+      'TEACHER_PASSWORD',
+      'TEACHER_NAME',
+      'DEMO_STUDENT_ID',
+    ];
+    expect(all.filter((name) => !documented.has(name))).toEqual([]);
+  });
+
+  it('never carries a real secret: keys, passwords and the invite code stay empty or commented', () => {
+    for (const name of [
+      'LLM_API_KEY',
+      'DEMO_PASSWORD',
+      'TEACHER_PASSWORD',
+      'TEACHER_INVITE_CODE',
+    ]) {
+      expect(active[name] ?? '', name).toBe('');
+    }
+    expect(text).not.toMatch(/gsk_[A-Za-z0-9]{10,}|sk-[A-Za-z0-9_-]{20,}/);
   });
 });
