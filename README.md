@@ -1,5 +1,7 @@
 # StudyPath AI
 
+[![CI](https://github.com/leandropiassetta/studypath_ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/leandropiassetta/studypath_ai/actions/workflows/ci.yml)
+
 MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A especificação oficial (SDD) é mantida localmente em `docs/StudyPath_AI_SPEC.md` e **não é versionada** (`docs/` está no `.gitignore`).
 
 **Estado:** P0 (T01–T09) e P1 (T10 explicações por LLM com fallback; T11 melhorias de UI) completos, mais assuntos, dúvidas com dicas graduais, fila do professor e tarefas em segundo plano. Roda no navegador; o Android foi validado manualmente uma vez em emulador (sem testes automatizados em dispositivo) e o iOS não foi executado. A integração contínua (`.github/workflows/ci.yml`) roda lint, tipos, build, testes e auditoria da API, e análise e testes do app. **Decisões, limitações conhecidas e rastreabilidade dos testes: [DECISIONS.md](DECISIONS.md).**
