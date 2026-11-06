@@ -91,6 +91,49 @@ describe('response hardening', () => {
   });
 });
 
+describe('JSON bodies', () => {
+  it('accepts an empty body when the route needs none (logout from curl)', async () => {
+    const fresh = await registerUser(app);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${fresh.token}` },
+      payload: '',
+    });
+    expect(res.statusCode).toBe(204);
+  });
+
+  it('still rejects invalid JSON, and a missing required body is a validation error, not a crash', async () => {
+    const auth = { authorization: `Bearer ${(await registerUser(app)).token}` };
+    const bad = await app.inject({
+      method: 'POST',
+      url: '/api/v1/attempts',
+      headers: { 'content-type': 'application/json', ...auth },
+      payload: '{oops',
+    });
+    expect(bad.statusCode).toBe(400);
+    const empty = await app.inject({
+      method: 'POST',
+      url: '/api/v1/attempts',
+      headers: { 'content-type': 'application/json', ...auth },
+      payload: '',
+    });
+    expect(empty.statusCode).toBe(400);
+    expect(empty.json().error.code).toBe('INVALID_REQUEST');
+  });
+
+  it('still blocks prototype poisoning in JSON bodies', async () => {
+    const auth = { authorization: `Bearer ${(await registerUser(app)).token}` };
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/attempts',
+      headers: { 'content-type': 'application/json', ...auth },
+      payload: '{"__proto__": {"admin": true}, "requestId": "x"}',
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
 describe('error handling', () => {
   it('uses the standard envelope for unknown routes', async () => {
     const res = await app.inject({ method: 'GET', url: '/nada' });

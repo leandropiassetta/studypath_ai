@@ -1,5 +1,10 @@
-import { buildUserMessage, SYSTEM_PROMPT } from '../prompt.js';
-import type { ExplanationInput, ExplanationProvider } from './types.js';
+import {
+  buildHintMessage,
+  buildUserMessage,
+  HINT_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from '../prompt.js';
+import type { ExplanationInput, ExplanationProvider, HintInput } from './types.js';
 
 export interface AnthropicOptions {
   apiKey: string;
@@ -18,7 +23,15 @@ export class AnthropicExplanationProvider implements ExplanationProvider {
     this.baseUrl = options.baseUrl ?? 'https://api.anthropic.com';
   }
 
-  async explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown> {
+  explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown> {
+    return this.message(SYSTEM_PROMPT, buildUserMessage(input), signal);
+  }
+
+  hint(input: HintInput, signal: AbortSignal): Promise<unknown> {
+    return this.message(HINT_SYSTEM_PROMPT, buildHintMessage(input), signal);
+  }
+
+  private async message(system: string, user: string, signal: AbortSignal): Promise<unknown> {
     const res = await this.fetchImpl(`${this.baseUrl}/v1/messages`, {
       method: 'POST',
       signal,
@@ -30,8 +43,8 @@ export class AnthropicExplanationProvider implements ExplanationProvider {
       body: JSON.stringify({
         model: this.options.model,
         max_tokens: 500,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: buildUserMessage(input) }],
+        system,
+        messages: [{ role: 'user', content: user }],
       }),
     });
     // Status only: never put the response body or the key in the error (it ends up in logs).

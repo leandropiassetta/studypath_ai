@@ -3,6 +3,7 @@ import { AppError, notFound } from '../../shared/errors/app-error.js';
 import type { ExplanationInput, ExplanationProvider } from './providers/types.js';
 import type { ExplanationRepository } from './repository.js';
 import type { ExplanationView } from './schemas.js';
+import { withTimeout } from './timeout.js';
 import { parseExplanation } from './validate.js';
 import {
   DEFAULT_USAGE_LIMITS,
@@ -17,23 +18,6 @@ const LIMIT_NOTICES: Record<Exclude<LimitVerdict, 'ok'>, string> = {
     'Muitas explicações em pouco tempo. Mostrando a explicação de referência; tente a IA de novo em instantes.',
   day: 'Limite de explicações por IA atingido (24 h). Mostrando a explicação de referência.',
 };
-
-async function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
-  const controller = new AbortController();
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new Error('LLM timeout'));
-    }, ms);
-  });
-  try {
-    // Race so a provider that ignores the abort signal still cannot hold the request.
-    return await Promise.race([run(controller.signal), timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 export class ExplanationService {
   private readonly limiter: UsageLimiter;

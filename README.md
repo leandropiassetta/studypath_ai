@@ -64,22 +64,34 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000` (o emula
 
 ## API
 
-| Método e rota                                      | Descrição                                                                                                                                             |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /health`                                      | 200 `{"status":"ok"}` ou 503 se o banco estiver indisponível (público)                                                                                |
-| `POST /api/v1/auth/register`                       | Cria a conta (`name`, `email`, `password` de 6 a 128 caracteres) e já abre a sessão: 201 `{token, expiresAt, student}`; 400, 409 (e-mail em uso), 429 |
-| `POST /api/v1/auth/login`                          | 200 `{token, expiresAt, student}`; 401 genérico (nunca diz se foi o e-mail ou a senha); 429 após 5 erros em 15 min                                    |
-| `POST /api/v1/auth/logout` / `GET /api/v1/auth/me` | Encerra a sessão atual (204) / dados do aluno logado                                                                                                  |
-| `GET /api/v1/quizzes/:slug`                        | Simulado ativo com questões em ordem, sem gabarito                                                                                                    |
-| `POST /api/v1/attempts`                            | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409                                                                                  |
-| `POST /api/v1/students/:studentId/review-quizzes`  | Cria (ou reaproveita) um quiz de revisão de um assunto recomendado, com até 3 questões; envie as respostas em `POST /api/v1/attempts`                 |
-| `GET /api/v1/students/:studentId/recommendations`  | Temas prioritários e até 3 exercícios inéditos por tema                                                                                               |
+| Método e rota                                      | Descrição                                                                                                                                                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /health`                                      | 200 `{"status":"ok"}` ou 503 se o banco estiver indisponível (público)                                                                                                                                                                     |
+| `POST /api/v1/auth/register`                       | Cria a conta (`name`, `email`, `password` de 6 a 128 caracteres) e já abre a sessão: 201 `{token, expiresAt, student}`; 400, 409 (e-mail em uso), 429                                                                                      |
+| `POST /api/v1/auth/login`                          | 200 `{token, expiresAt, student}`; 401 genérico (nunca diz se foi o e-mail ou a senha); 429 após 5 erros em 15 min                                                                                                                         |
+| `POST /api/v1/auth/logout` / `GET /api/v1/auth/me` | Encerra a sessão atual (204) / dados do aluno logado                                                                                                                                                                                       |
+| `GET /api/v1/quizzes/:slug`                        | Simulado ativo com questões em ordem, sem gabarito                                                                                                                                                                                         |
+| `POST /api/v1/attempts`                            | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409                                                                                                                                                                       |
+| `POST /api/v1/students/:studentId/review-quizzes`  | Cria (ou reaproveita) um quiz de revisão de um assunto recomendado, com até 3 questões; envie as respostas em `POST /api/v1/attempts`                                                                                                      |
+| `POST /api/v1/doubts`                              | Abre (ou reabre) a **dúvida** sobre uma questão errada da própria tentativa (`attemptId`, `questionId`, `message` opcional de até 300 caracteres): 201 criada, 200 já existia, 400 se a questão foi acertada, 404 se a tentativa não é sua |
+| `POST /api/v1/doubts/:doubtId/hints`               | Entrega a **próxima dica** (nível 1, 2 e, por último, a solução). O servidor decide o nível; a quarta chamada dá 409                                                                                                                       |
+| `GET /api/v1/doubts/:doubtId`                      | A dúvida com todas as dicas já dadas                                                                                                                                                                                                       |
+| `GET /api/v1/students/:studentId/recommendations`  | Temas prioritários e até 3 exercícios inéditos por tema                                                                                                                                                                                    |
 
 `POST /api/v1/attempts/:attemptId/explanations` com `{"questionId":"..."}` devolve `{questionId, explanation, source}`. Só aceita questões **erradas** daquela tentativa do aluno demo (400 se acertada, 403/404 conforme acesso). `source` é `llm` ou `reference`: em timeout, erro ou saída inválida da LLM volta a explicação de referência, e nota, gabarito e recomendações nunca mudam. Nada gerado pela LLM é gravado em banco. **Controle de custo (em memória, zera ao reiniciar):** a explicação de uma questão fica em cache, então cliques repetidos não geram nova chamada; pedidos simultâneos da mesma questão compartilham uma só chamada; e há limite por minuto e por 24 h. Passado o limite, a API continua respondendo 200 com a explicação de referência e um campo `notice` explicando o motivo. Chamadas que falham também contam no limite. Com `AI_MODE=mock` não há rede nem chave (resposta determinística); com `real` usa a API do provedor em `LLM_PROVIDER` (Anthropic ou OpenAI).
 
 Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem detalhes internos.
 
 **Todas as rotas abaixo exigem `Authorization: Bearer <token>`** (401 sem token válido). O aluno é sempre o da sessão: informar outro `studentId` no caminho ou no corpo dá 403, e a tentativa de outro aluno em `/explanations` aparece como 404.
+
+## Tirar dúvida (dicas graduais de IA)
+
+No resultado, cada questão errada tem **"Tirar dúvida"**. A aluna pode escrever o que não entendeu (opcional) e pedir dicas **uma de cada vez**: dica 1 (pergunta orientadora), dica 2 (próximo passo do método) e, só no fim, a solução completa.
+
+- **A ordem é imposta pelo servidor** (a aluna não escolhe o nível), com atualização atômica: dois toques ao mesmo tempo recebem níveis diferentes.
+- **Nos níveis 1 e 2 a resposta não pode vazar.** O modelo é instruído a não revelar, e a saída ainda passa por uma checagem automática (alternativa citada, "x = valor", "resultado é..."). Se vazar, falhar, expirar ou estourar o limite de uso, entra a **dica padrão** montada a partir da solução de referência da própria questão (testada para as 24 questões do seed).
+- A mensagem da aluna é tratada como **dado não confiável** (limitada a 300 caracteres e isolada em `<question_data>`), então não consegue mudar o nível nem as regras.
+- As dicas ficam gravadas, para reabrir a dúvida com tudo o que já foi dito.
 
 ## Roteiro de demonstração (3 minutos)
 

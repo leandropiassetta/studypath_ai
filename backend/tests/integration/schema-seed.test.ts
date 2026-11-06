@@ -32,6 +32,8 @@ describe('schema', () => {
     expect(rows.map((r) => r.table_name)).toEqual([
       'attempt_answers',
       'attempts',
+      'doubt_hints',
+      'doubts',
       'questions',
       'quiz_questions',
       'quizzes',

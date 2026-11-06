@@ -11,6 +11,9 @@ import { AttemptService } from './modules/attempts/service.js';
 import { AuthRepository } from './modules/auth/repository.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { AuthService, DEFAULT_SESSION_TTL_MS } from './modules/auth/service.js';
+import { DoubtRepository } from './modules/doubts/repository.js';
+import { doubtRoutes } from './modules/doubts/routes.js';
+import { DoubtService } from './modules/doubts/service.js';
 import { ReviewRepository } from './modules/reviews/repository.js';
 import { reviewRoutes } from './modules/reviews/routes.js';
 import { ReviewService } from './modules/reviews/service.js';
@@ -64,6 +67,15 @@ export function buildApp({
       : false,
   });
   registerErrorHandling(app);
+
+  // Tolerate `content-type: application/json` with an empty body (e.g. `POST /doubts/:id/hints` or
+  // logout from curl). Anything else keeps the default behavior, including prototype-poisoning checks.
+  const parseJson = app.getDefaultJsonParser('error', 'error');
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (body === '') return done(null, undefined);
+    parseJson(req, body as string, done);
+  });
   registerLoopbackCors(app);
   app.addHook('onSend', async (req, reply, payload) => {
     void reply.header('x-content-type-options', 'nosniff');
@@ -95,6 +107,17 @@ export function buildApp({
       await api.register(
         explanationRoutes(
           new ExplanationService(
+            new ExplanationRepository(dataSource),
+            explanationProvider,
+            aiTimeoutMs,
+            aiLimits,
+          ),
+        ),
+      );
+      await api.register(
+        doubtRoutes(
+          new DoubtService(
+            new DoubtRepository(dataSource),
             new ExplanationRepository(dataSource),
             explanationProvider,
             aiTimeoutMs,

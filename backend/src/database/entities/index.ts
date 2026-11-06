@@ -1,6 +1,8 @@
 export { Attempt } from './attempt.js';
 export { AttemptAnswer } from './attempt-answer.js';
 export { Question, type Difficulty, type QuestionOption } from './question.js';
+export { Doubt, type DoubtStatus } from './doubt.js';
+export { DoubtHint } from './doubt-hint.js';
 export { Quiz } from './quiz.js';
 export { Session } from './session.js';
 export { QuizQuestion } from './quiz-question.js';

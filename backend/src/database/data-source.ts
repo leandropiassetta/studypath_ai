@@ -5,6 +5,8 @@ import { DataSource } from 'typeorm';
 import {
   Attempt,
   AttemptAnswer,
+  Doubt,
+  DoubtHint,
   Question,
   Quiz,
   QuizQuestion,
@@ -20,7 +22,18 @@ export function createDataSource(url: string): DataSource {
     type: 'postgres',
     url,
     uuidExtension: 'pgcrypto',
-    entities: [Student, Topic, Quiz, Question, QuizQuestion, Attempt, AttemptAnswer, Session],
+    entities: [
+      Student,
+      Topic,
+      Quiz,
+      Question,
+      QuizQuestion,
+      Attempt,
+      AttemptAnswer,
+      Session,
+      Doubt,
+      DoubtHint,
+    ],
     // Schema changes happen only through versioned migrations.
     synchronize: false,
     migrationsRun: false,

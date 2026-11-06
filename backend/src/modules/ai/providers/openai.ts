@@ -1,5 +1,10 @@
-import { buildUserMessage, SYSTEM_PROMPT } from '../prompt.js';
-import type { ExplanationInput, ExplanationProvider } from './types.js';
+import {
+  buildHintMessage,
+  buildUserMessage,
+  HINT_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from '../prompt.js';
+import type { ExplanationInput, ExplanationProvider, HintInput } from './types.js';
 
 export interface OpenAIOptions {
   apiKey: string;
@@ -18,7 +23,20 @@ export class OpenAIExplanationProvider implements ExplanationProvider {
     this.baseUrl = options.baseUrl ?? 'https://api.openai.com';
   }
 
-  async explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown> {
+  explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown> {
+    return this.chat(SYSTEM_PROMPT, buildUserMessage(input), 800, signal);
+  }
+
+  hint(input: HintInput, signal: AbortSignal): Promise<unknown> {
+    return this.chat(HINT_SYSTEM_PROMPT, buildHintMessage(input), 500, signal);
+  }
+
+  private async chat(
+    system: string,
+    user: string,
+    maxTokens: number,
+    signal: AbortSignal,
+  ): Promise<unknown> {
     const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
       method: 'POST',
       signal,
@@ -28,12 +46,12 @@ export class OpenAIExplanationProvider implements ExplanationProvider {
       },
       body: JSON.stringify({
         model: this.options.model,
-        max_completion_tokens: 800,
-        // JSON mode: the system prompt asks for {"explanation": "..."}; output is still validated.
+        max_completion_tokens: maxTokens,
+        // JSON mode: the system prompt asks for a JSON object; output is still validated.
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserMessage(input) },
+          { role: 'system', content: system },
+          { role: 'user', content: user },
         ],
       }),
     });

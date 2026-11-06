@@ -21,3 +21,23 @@ export function parseExplanation(raw: unknown): string | null {
   const text = value.explanation.trim();
   return text.length > 0 ? text : null;
 }
+
+const HintOutput = Type.Object(
+  { hint: Type.String({ minLength: 1, maxLength: 700 }) },
+  { additionalProperties: false },
+);
+
+/** Returns the hint text if the model output has the expected shape, else null. */
+export function parseHint(raw: unknown): string | null {
+  let value = raw;
+  if (typeof raw === 'string') {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!Value.Check(HintOutput, value)) return null;
+  const text = value.hint.trim();
+  return text.length > 0 ? text : null;
+}
