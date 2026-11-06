@@ -12,6 +12,9 @@ curl -fsS "$API_URL/health" >/dev/null || { fail "A API não está respondendo e
 deleted="$(psql_local "WITH d AS (DELETE FROM attempts WHERE student_id = '$DEMO_STUDENT_ID' RETURNING 1) SELECT count(*) FROM d")"
 ok "Histórico anterior da aluna demo removido ($deleted tentativa(s); dúvidas e dicas saem junto)"
 
+waiting="$(psql_local "WITH d AS (DELETE FROM doubts WHERE status = 'WAITING_TEACHER' RETURNING 1) SELECT count(*) FROM d")"
+ok "Fila da professora limpa ($waiting dúvida(s) de ensaios anteriores)"
+
 TOKEN="$(api_login "$DEMO_EMAIL" "$DEMO_PASSWORD")" || { fail "A aluna demo não consegue entrar. Rode 'npm run demo:setup' antes."; exit 1; }
 
 API_URL="$API_URL" TOKEN="$TOKEN" STUDENT_ID="$DEMO_STUDENT_ID" python3 - <<'PY'

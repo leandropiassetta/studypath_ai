@@ -216,3 +216,14 @@ describe('analysis (teacher context)', () => {
     expect(urls).toEqual(['https://api.groq.com/openai/v1/chat/completions']);
   });
 });
+
+describe('normalizeModelText', () => {
+  it('turns escaped line breaks from the model into real ones, in every parser', async () => {
+    const { parseExplanation, parseAnalysis } = await import('../../src/modules/ai/validate.js');
+    const escaped = 'Passo 1.\\nPasso 2.\\n\\n\\nFim.';
+    expect(parseExplanation({ explanation: escaped })).toBe('Passo 1.\nPasso 2.\n\nFim.');
+    expect(parseHint({ hint: 'Dica\\nlinha' })).toBe('Dica\nlinha');
+    expect(parseAnalysis({ misconception: 'a\\tb' })).toBe('a b');
+    expect(parseHint({ hint: 'sem escapes' })).toBe('sem escapes');
+  });
+});

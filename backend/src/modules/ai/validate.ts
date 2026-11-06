@@ -7,6 +7,18 @@ const ExplanationOutput = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * Some models double-escape line breaks inside the JSON string, so the app would show a literal
+ * "\\n". Turn those into real line breaks (and collapse long runs of them).
+ */
+export function normalizeModelText(text: string): string {
+  return text
+    .replace(/\\r\\n|\\n|\\r/g, '\n')
+    .replace(/\\t/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /** Returns the explanation text if the model output has the expected shape, else null. */
 export function parseExplanation(raw: unknown): string | null {
   let value = raw;
@@ -18,7 +30,7 @@ export function parseExplanation(raw: unknown): string | null {
     }
   }
   if (!Value.Check(ExplanationOutput, value)) return null;
-  const text = value.explanation.trim();
+  const text = normalizeModelText(value.explanation);
   return text.length > 0 ? text : null;
 }
 
@@ -38,7 +50,7 @@ export function parseHint(raw: unknown): string | null {
     }
   }
   if (!Value.Check(HintOutput, value)) return null;
-  const text = value.hint.trim();
+  const text = normalizeModelText(value.hint);
   return text.length > 0 ? text : null;
 }
 
@@ -58,6 +70,6 @@ export function parseAnalysis(raw: unknown): string | null {
     }
   }
   if (!Value.Check(AnalysisOutput, value)) return null;
-  const text = value.misconception.trim();
+  const text = normalizeModelText(value.misconception);
   return text.length > 0 ? text : null;
 }
