@@ -78,8 +78,8 @@ void main() {
     });
 
     test('new password enforces the 10 character minimum', () {
-      expect(validateNewPassword('dez-chars!'), isNull);
-      expect(validateNewPassword('nove-char'), contains('pelo menos 10'));
+      expect(validateNewPassword('seis66'), isNull); // exactly the minimum
+      expect(validateNewPassword('cinco'), contains('pelo menos 6'));
       expect(validateNewPassword(''), 'Crie uma senha');
       expect(validateNewPassword('x' * 129), contains('128'));
     });
@@ -338,7 +338,7 @@ void main() {
       await pumpAuth(tester);
       expect(find.text('Entrar'), findsWidgets);
       expect(find.byKey(const Key('field-name')), findsNothing);
-      expect(find.text('Mínimo de 10 caracteres'), findsNothing);
+      expect(find.text('Mínimo de 6 caracteres'), findsNothing);
     });
 
     testWidgets(
@@ -365,12 +365,12 @@ void main() {
         await tester.tap(find.text('Criar conta').first);
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('field-name')), findsOneWidget);
-        expect(find.text('Mínimo de 10 caracteres'), findsOneWidget);
+        expect(find.text('Mínimo de 6 caracteres'), findsOneWidget);
 
         await fill(tester, name: 'Maria', password: 'curta');
         await tester.tap(find.byKey(const Key('auth-submit')));
         await tester.pump();
-        expect(find.textContaining('pelo menos 10'), findsOneWidget);
+        expect(find.textContaining('pelo menos 6'), findsOneWidget);
         expect(requests, isEmpty);
       },
     );

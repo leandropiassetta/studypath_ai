@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-export const MIN_PASSWORD_LENGTH = 10;
+export const MIN_PASSWORD_LENGTH = 6;
 export const MAX_PASSWORD_LENGTH = 128;
 
 export const RegisterBody = Type.Object(

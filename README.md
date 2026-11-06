@@ -46,7 +46,7 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000` (o emula
 | `ALLOW_NON_LOOPBACK_HOST`      | _(não definida)_                       | `true` libera `HOST` fora do loopback; sem isso a API recusa iniciar em `0.0.0.0`/IP de rede (HTTP sem TLS) |
 | `APP_ENV`                      | `demo`                                 | Modo demo                                                                                                   |
 | `SESSION_TTL_DAYS`             | `7`                                    | Duração do login, em dias (1 a 90)                                                                          |
-| `DEMO_EMAIL` / `DEMO_PASSWORD` | _(não definidas)_                      | Opcional, só para `npm run db:seed`: dá login ao aluno demo. Senha com 10+ caracteres; nunca versione       |
+| `DEMO_EMAIL` / `DEMO_PASSWORD` | _(não definidas)_                      | Opcional, só para `npm run db:seed`: dá login ao aluno demo. Senha com 6+ caracteres; nunca versione        |
 | `DEMO_STUDENT_ID`              | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                                                                                 |
 | `AI_MODE`                      | `disabled`                             | `disabled`, `mock` ou `real` (explicações)                                                                  |
 | `AI_TIMEOUT_MS`                | `8000`                                 | Timeout da chamada à LLM                                                                                    |
@@ -64,16 +64,16 @@ Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000` (o emula
 
 ## API
 
-| Método e rota                                      | Descrição                                                                                                                                              |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /health`                                      | 200 `{"status":"ok"}` ou 503 se o banco estiver indisponível (público)                                                                                 |
-| `POST /api/v1/auth/register`                       | Cria a conta (`name`, `email`, `password` de 10 a 128 caracteres) e já abre a sessão: 201 `{token, expiresAt, student}`; 400, 409 (e-mail em uso), 429 |
-| `POST /api/v1/auth/login`                          | 200 `{token, expiresAt, student}`; 401 genérico (nunca diz se foi o e-mail ou a senha); 429 após 5 erros em 15 min                                     |
-| `POST /api/v1/auth/logout` / `GET /api/v1/auth/me` | Encerra a sessão atual (204) / dados do aluno logado                                                                                                   |
-| `GET /api/v1/quizzes/:slug`                        | Simulado ativo com questões em ordem, sem gabarito                                                                                                     |
-| `POST /api/v1/attempts`                            | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409                                                                                   |
-| `POST /api/v1/students/:studentId/review-quizzes`  | Cria (ou reaproveita) um quiz de revisão de um assunto recomendado, com até 3 questões; envie as respostas em `POST /api/v1/attempts`                  |
-| `GET /api/v1/students/:studentId/recommendations`  | Temas prioritários e até 3 exercícios inéditos por tema                                                                                                |
+| Método e rota                                      | Descrição                                                                                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`                                      | 200 `{"status":"ok"}` ou 503 se o banco estiver indisponível (público)                                                                                |
+| `POST /api/v1/auth/register`                       | Cria a conta (`name`, `email`, `password` de 6 a 128 caracteres) e já abre a sessão: 201 `{token, expiresAt, student}`; 400, 409 (e-mail em uso), 429 |
+| `POST /api/v1/auth/login`                          | 200 `{token, expiresAt, student}`; 401 genérico (nunca diz se foi o e-mail ou a senha); 429 após 5 erros em 15 min                                    |
+| `POST /api/v1/auth/logout` / `GET /api/v1/auth/me` | Encerra a sessão atual (204) / dados do aluno logado                                                                                                  |
+| `GET /api/v1/quizzes/:slug`                        | Simulado ativo com questões em ordem, sem gabarito                                                                                                    |
+| `POST /api/v1/attempts`                            | Corrige e grava a tentativa: 201 criada, 200 replay, 400/403/404/409                                                                                  |
+| `POST /api/v1/students/:studentId/review-quizzes`  | Cria (ou reaproveita) um quiz de revisão de um assunto recomendado, com até 3 questões; envie as respostas em `POST /api/v1/attempts`                 |
+| `GET /api/v1/students/:studentId/recommendations`  | Temas prioritários e até 3 exercícios inéditos por tema                                                                                               |
 
 `POST /api/v1/attempts/:attemptId/explanations` com `{"questionId":"..."}` devolve `{questionId, explanation, source}`. Só aceita questões **erradas** daquela tentativa do aluno demo (400 se acertada, 403/404 conforme acesso). `source` é `llm` ou `reference`: em timeout, erro ou saída inválida da LLM volta a explicação de referência, e nota, gabarito e recomendações nunca mudam. Nada gerado pela LLM é gravado em banco. **Controle de custo (em memória, zera ao reiniciar):** a explicação de uma questão fica em cache, então cliques repetidos não geram nova chamada; pedidos simultâneos da mesma questão compartilham uma só chamada; e há limite por minuto e por 24 h. Passado o limite, a API continua respondendo 200 com a explicação de referência e um campo `notice` explicando o motivo. Chamadas que falham também contam no limite. Com `AI_MODE=mock` não há rede nem chave (resposta determinística); com `real` usa a API do provedor em `LLM_PROVIDER` (Anthropic ou OpenAI).
 

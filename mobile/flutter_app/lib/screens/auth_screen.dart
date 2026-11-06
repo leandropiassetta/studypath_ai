@@ -26,7 +26,7 @@ String? validateEmail(String? value) {
   return null;
 }
 
-const int minPasswordLength = 10;
+const int minPasswordLength = 6;
 const int maxPasswordLength = 128;
 
 String? validateNewPassword(String? value) {

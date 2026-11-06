@@ -72,7 +72,7 @@ describe('POST /api/v1/auth/register', () => {
     const before = Number((await ds.query(`SELECT count(*) n FROM students`))[0].n);
     const valid = { name: 'Ana', email: 'ana@teste.dev', password: TEST_PASSWORD };
     for (const [label, payload] of Object.entries({
-      'short password': { ...valid, password: 'curta123' },
+      'short password (5)': { ...valid, password: 'curta' },
       'password too long': { ...valid, password: 'x'.repeat(129) },
       'bad e-mail': { ...valid, email: 'nao-e-email' },
       'empty name': { ...valid, name: '' },
@@ -84,6 +84,23 @@ describe('POST /api/v1/auth/register', () => {
       expect(res.statusCode, label).toBe(400);
     }
     expect(Number((await ds.query(`SELECT count(*) n FROM students`))[0].n)).toBe(before);
+  });
+
+  it('accepts exactly the minimum length (6) and rejects one less (5)', async () => {
+    const ok = await post('/api/v1/auth/register', {
+      name: 'Limite',
+      email: 'limite6@teste.dev',
+      password: 'seis66',
+    });
+    expect(ok.statusCode).toBe(201);
+    const login6 = await login('limite6@teste.dev', 'seis66');
+    expect(login6.statusCode).toBe(200);
+    const short = await post('/api/v1/auth/register', {
+      name: 'Curto',
+      email: 'limite5@teste.dev',
+      password: 'cinco',
+    });
+    expect(short.statusCode).toBe(400);
   });
 
   it('returns 409 for a duplicate e-mail, ignoring case', async () => {
