@@ -23,6 +23,8 @@ concurrency:
 jobs:
   build:
     name: Compilar o app para a web
+    # Enquanto API_BASE_URL não existir, o workflow é simplesmente pulado (não fica vermelho).
+    if: ${{ vars.API_BASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
