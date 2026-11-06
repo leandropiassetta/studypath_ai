@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/quiz.dart';
 import '../services/api_client.dart';
 import '../services/request_id.dart';
+import '../utils/plural.dart';
 import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/question_card.dart';
@@ -123,37 +124,78 @@ class _QuizScreenState extends State<QuizScreen> {
     final fresh = quiz.newCount ?? 0;
     final retry = quiz.retryCount ?? 0;
     final parts = [
-      if (fresh > 0) '$fresh inédita(s)',
+      if (fresh > 0) plural(fresh, 'inédita', 'inéditas'),
       if (retry > 0) '$retry para refazer',
     ];
-    return 'Revisão de ${quiz.questions.length} questão(ões): ${parts.join(' e ')}.'
+    return 'Revisão de ${plural(quiz.questions.length, 'questão', 'questões')}: ${parts.join(' e ')}.'
         '${retry > 0 ? ' Refazer a mesma questão ajuda a fixar, mas não prova que você entendeu.' : ''}';
+  }
+
+  /// Asks before throwing away marked answers. Returns true when leaving is fine.
+  Future<bool> _confirmDiscard() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sair do simulado?'),
+        content: Text(
+          'Você marcou ${plural(_answers.length, 'resposta', 'respostas')}. '
+          'Se sair agora, elas serão perdidas.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('keep-quiz'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Continuar respondendo'),
+          ),
+          FilledButton(
+            key: const Key('leave-quiz'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+    return leave ?? false;
+  }
+
+  Future<void> _logout() async {
+    if (_answers.isNotEmpty && !await _confirmDiscard()) return;
+    await widget.onLogout?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     final quiz = _quiz;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(quiz?.title ?? 'Simulado'),
-        actions: [
-          if (widget.onLogout != null)
-            IconButton(
-              key: const Key('logout-button'),
-              tooltip: widget.studentName == null
-                  ? 'Sair da conta'
-                  : 'Sair da conta de ${widget.studentName}',
-              icon: const Icon(Icons.logout),
-              onPressed: () => widget.onLogout?.call(),
-            ),
-        ],
-      ),
-      body: CenteredContent(
-        child: _loading
-            ? const LoadingView()
-            : _loadError != null
-            ? ErrorView(message: _loadError!, onRetry: _load)
-            : _buildQuiz(quiz!),
+    return PopScope(
+      // Going back (or the Android back button) with marked answers asks first.
+      canPop: _answers.isEmpty || _submitting,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        if (await _confirmDiscard()) navigator.pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(quiz?.title ?? 'Simulado'),
+          actions: [
+            if (widget.onLogout != null)
+              IconButton(
+                key: const Key('logout-button'),
+                tooltip: widget.studentName == null
+                    ? 'Sair da conta'
+                    : 'Sair da conta de ${widget.studentName}',
+                icon: const Icon(Icons.logout),
+                onPressed: _logout,
+              ),
+          ],
+        ),
+        body: CenteredContent(
+          child: _loading
+              ? const LoadingView()
+              : _loadError != null
+              ? ErrorView(message: _loadError!, onRetry: _load)
+              : _buildQuiz(quiz!),
+        ),
       ),
     );
   }
@@ -170,11 +212,19 @@ class _QuizScreenState extends State<QuizScreen> {
             padding: const EdgeInsets.all(12),
             child: Text(_reviewSummary(quiz)),
           ),
-        LinearProgressIndicator(
-          key: const Key('progress'),
-          value: quiz.questions.isEmpty
-              ? 0
-              : _answers.length / quiz.questions.length,
+        Semantics(
+          // The indicator's own semantics only accept a number, so describe progress in words here.
+          label: 'Progresso do simulado',
+          value:
+              '${_answers.length} de ${plural(quiz.questions.length, 'questão', 'questões')} respondidas',
+          child: ExcludeSemantics(
+            child: LinearProgressIndicator(
+              key: const Key('progress'),
+              value: quiz.questions.isEmpty
+                  ? 0
+                  : _answers.length / quiz.questions.length,
+            ),
+          ),
         ),
         Expanded(
           child: ListView(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/recommendations.dart';
 import '../services/api_client.dart';
+import '../utils/plural.dart';
 import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/progress_section.dart';
@@ -114,7 +115,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           padding: const EdgeInsets.all(12),
           children: [
             Text(
-              'Considerando ${data.evaluatedAttempts} tentativa(s). '
+              'Considerando ${plural(data.evaluatedAttempts, 'tentativa', 'tentativas')}. '
               'A prioridade considera a última resposta de cada questão.',
             ),
             ProgressSection(progress: data.progress),
@@ -133,7 +134,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
-                'Última resposta certa em ${t.correctCount} de ${t.answeredCount} questões (${formatPct(t.accuracyPct)})',
+                'Última resposta certa em ${t.correctCount} de ${plural(t.answeredCount, 'questão', 'questões')} (${formatPct(t.accuracyPct)})',
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),

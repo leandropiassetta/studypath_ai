@@ -49,10 +49,14 @@ class QuestionCard extends StatelessWidget {
                   key: Key('topic-${question.id}'),
                   child: TopicTag(name: question.topicName!),
                 ),
-              Text(
-                difficultyLabel(question.difficulty),
-                key: Key('difficulty-${question.id}'),
-                style: Theme.of(context).textTheme.labelMedium,
+              Semantics(
+                label: 'Dificuldade: ${difficultyLabel(question.difficulty)}',
+                excludeSemantics: true,
+                child: Text(
+                  difficultyLabel(question.difficulty),
+                  key: Key('difficulty-${question.id}'),
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ),
             ],
           ),
@@ -93,7 +97,6 @@ class QuestionCard extends StatelessWidget {
                       value: o.key,
                       enabled: onSelected != null,
                       title: Text('${o.key}) ${o.text}'),
-                      dense: true,
                     ),
                 ],
               ),

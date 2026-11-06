@@ -560,6 +560,10 @@ void main() {
 
       await tester.tap(find.byKey(const Key('logout-button')));
       await tester.pumpAndSettle();
+      // There were marked answers, so leaving asks first.
+      expect(find.text('Sair do simulado?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('leave-quiz')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('auth-submit')), findsOneWidget);
       expect(api.hasSession, isFalse);
 

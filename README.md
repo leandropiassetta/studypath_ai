@@ -9,7 +9,7 @@ MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A es
 ## Como funciona
 
 - **Backend** (`backend/`): Node.js + Fastify + TypeScript strict, TypeORM, PostgreSQL. Camadas `routes → service → repository`, com regras de domínio puras (correção e recomendações) e sem uso de LLM.
-- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com cadastro/login, simulado, resultado, recomendações e quiz de revisão. A sessão fica **só em memória**: fechar o app desloga (nada é gravado em disco).
+- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com cadastro/login, simulado, resultado, recomendações e quiz de revisão. A sessão fica **só em memória**: fechar o app desloga (nada é gravado em disco). Segue o tema claro/escuro do sistema.
 - **Banco**: PostgreSQL 16 via Docker Compose, com migrations versionadas e seed determinístico.
 
 ## Requisitos
@@ -103,6 +103,10 @@ Teste de resiliência no app: pare a API (`Ctrl+C`), tente enviar e veja o erro 
 - No app, o token da sessão nunca é gravado em disco (só em memória); sair da conta encerra a sessão também no servidor, e uma sessão expirada leva de volta ao login com um aviso.
 - Os testes recusam rodar `DROP SCHEMA` em qualquer banco que não seja local e terminado em `_test`.
 - `npm audit --omit=dev`: 0 vulnerabilidades. O `npm audit` completo aponta 10 avisos moderados só na cadeia do ESLint (ferramenta de desenvolvimento); a correção automática exigiria rebaixar o ESLint e quebraria o lint, então foi deliberadamente não aplicada.
+
+## Acessibilidade e usabilidade
+
+Rótulos para leitores de tela (progresso, assunto, dificuldade, resposta correta/incorreta), alvos de toque de pelo menos 48 dp, contraste mínimo de 4,5:1 nas tags e variações em ambos os temas, layout testado com fonte a 200%, validação de formulários em português com mostrar/ocultar senha, confirmação ao sair de um simulado com respostas marcadas e plural correto nos textos.
 
 ## Qualidade
 

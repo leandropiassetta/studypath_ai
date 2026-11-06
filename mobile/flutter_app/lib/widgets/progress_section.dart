@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/recommendations.dart';
+import '../utils/contrast.dart';
 import '../screens/result_screen.dart' show formatPct;
 
 /// Percentage-point change between the last two values, or null with fewer than two.
@@ -77,9 +78,10 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final delta = progressDelta(values);
+    final surface = Theme.of(context).colorScheme.surface;
     final color = delta == null || delta.abs() < 0.005
         ? null
-        : (delta > 0 ? Colors.green.shade700 : Colors.red.shade700);
+        : ensureContrast(delta > 0 ? Colors.green : Colors.red, surface);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Wrap(

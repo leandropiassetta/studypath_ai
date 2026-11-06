@@ -49,11 +49,18 @@ class ResultScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.displayMedium,
             ),
             Text(
-              '${result.correctCount} de ${result.totalCount} questões corretas',
+              '${result.correctCount} de ${result.totalCount} '
+              '${result.totalCount == 1 ? 'questão correta' : 'questões corretas'}',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Text('Por assunto', style: Theme.of(context).textTheme.titleMedium),
+            Semantics(
+              header: true,
+              child: Text(
+                'Por assunto',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
             for (final t in result.topicResults)
               ListTile(
                 dense: true,
@@ -63,7 +70,13 @@ class ResultScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            Text('Correção', style: Theme.of(context).textTheme.titleMedium),
+            Semantics(
+              header: true,
+              child: Text(
+                'Correção',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
             for (final a in result.answers)
               Card(
                 child: Column(
@@ -80,6 +93,9 @@ class ResultScreen extends StatelessWidget {
                     ListTile(
                       leading: Icon(
                         a.isCorrect ? Icons.check_circle : Icons.cancel,
+                        semanticLabel: a.isCorrect
+                            ? 'Resposta correta'
+                            : 'Resposta incorreta',
                         color: a.isCorrect ? Colors.green : Colors.red,
                       ),
                       title: Text(

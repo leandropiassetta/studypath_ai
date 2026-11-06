@@ -27,6 +27,8 @@ class StudyPathApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'StudyPath AI',
     theme: _theme(Brightness.light),
+    darkTheme: _theme(Brightness.dark),
+    themeMode: ThemeMode.system,
     home: ListenableBuilder(
       listenable: session,
       builder: (context, _) {

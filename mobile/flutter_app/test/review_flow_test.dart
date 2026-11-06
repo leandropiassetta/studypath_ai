@@ -131,10 +131,7 @@ void main() {
     // Review quiz screen with its banner and title.
     expect(find.text('Revisão: Equações'), findsOneWidget);
     expect(find.byKey(const Key('review-banner')), findsOneWidget);
-    expect(
-      find.textContaining('2 inédita(s) e 1 para refazer'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('2 inéditas e 1 para refazer'), findsOneWidget);
     expect(find.textContaining('não prova que você entendeu'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('option-r1-B')));
@@ -169,7 +166,7 @@ void main() {
     await pumpRecs(tester, mock);
     await tester.tap(find.byKey(const Key('practice-eq')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('3 inédita(s).'), findsOneWidget);
+    expect(find.textContaining('3 inéditas.'), findsOneWidget);
     expect(find.textContaining('para refazer'), findsNothing);
     expect(find.textContaining('não prova que você entendeu'), findsNothing);
   });
