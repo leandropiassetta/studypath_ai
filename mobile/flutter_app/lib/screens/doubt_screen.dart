@@ -449,7 +449,7 @@ class _HintCard extends StatelessWidget {
                       hint.isAi
                           ? 'IA'
                           : hint.level >= 3
-                          ? 'Solução'
+                          ? 'Referência'
                           : 'Dica padrão',
                     ),
                     visualDensity: VisualDensity.compact,
