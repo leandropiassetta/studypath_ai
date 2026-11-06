@@ -37,7 +37,10 @@ const app = buildApp({
   dataSource,
   explanationProvider,
   aiTimeoutMs: env.AI_TIMEOUT_MS,
-  auth: { sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60_000 },
+  auth: {
+    sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60_000,
+    teacherInviteCode: env.TEACHER_INVITE_CODE,
+  },
   aiLimits: {
     perMinute: env.AI_MAX_CALLS_PER_MINUTE,
     perDay: env.AI_MAX_CALLS_PER_DAY,

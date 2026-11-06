@@ -17,7 +17,7 @@ class Student {
   final String name;
   final String? email;
 
-  /// `student` or `teacher` (teachers cannot sign up in the app; accounts are created by the school).
+  /// `student` or `teacher` (a teacher signs up with the invite code the school provides).
   final String role;
 
   bool get isTeacher => role == 'teacher';

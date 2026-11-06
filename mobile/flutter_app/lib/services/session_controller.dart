@@ -29,8 +29,16 @@ class SessionController extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    String? inviteCode,
   }) async {
-    _apply(await _api.register(name: name, email: email, password: password));
+    _apply(
+      await _api.register(
+        name: name,
+        email: email,
+        password: password,
+        inviteCode: inviteCode,
+      ),
+    );
   }
 
   Future<void> logout() async {

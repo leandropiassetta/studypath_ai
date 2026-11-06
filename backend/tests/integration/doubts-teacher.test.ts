@@ -105,7 +105,7 @@ afterAll(async () => {
 });
 
 describe('teacher accounts', () => {
-  it('cannot be created through sign-up, and the role is part of the session', async () => {
+  it('cannot be created through sign-up without an invite, and the role is part of the session', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/register',
@@ -116,13 +116,13 @@ describe('teacher accounts', () => {
         role: 'teacher',
       },
     });
-    // Unknown body fields are dropped, never applied: the account comes out as a plain student.
-    expect(res.statusCode).toBe(201);
-    expect(res.json().student.role).toBe('student');
-    const [created] = await ds.query(
+    // This app has no invite code configured: nobody can sign up as a teacher, and nothing is created.
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('TEACHER_SIGNUP_DISABLED');
+    const created = await ds.query(
       `SELECT role FROM students WHERE email = 'espertinho@teste.dev'`,
     );
-    expect(created.role).toBe('student');
+    expect(created).toHaveLength(0);
     const me = await call(teacher, 'GET', '/api/v1/auth/me');
     expect(me.json().role).toBe('teacher');
     expect((await call(student, 'GET', '/api/v1/auth/me')).json().role).toBe('student');

@@ -8,6 +8,9 @@ import '../widgets/theme_mode_button.dart';
 
 enum AuthMode { login, register }
 
+/// Who is signing up. A teacher needs an invite code; the server decides, not the app.
+enum AccountType { student, teacher }
+
 final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 /// Validators are plain functions so they can be tested without pumping a widget.
@@ -42,6 +45,13 @@ String? validateNewPassword(String? value) {
   return null;
 }
 
+String? validateInviteCode(String? value) {
+  final code = value?.trim() ?? '';
+  if (code.isEmpty) return 'Informe o código de convite';
+  if (code.length > 128) return 'Código muito longo';
+  return null;
+}
+
 String? validateExistingPassword(String? value) =>
     (value == null || value.isEmpty) ? 'Informe sua senha' : null;
 
@@ -59,21 +69,26 @@ class _AuthScreenState extends State<AuthScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _invite = TextEditingController();
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
   AuthMode _mode = AuthMode.login;
+  AccountType _type = AccountType.student;
   bool _hidePassword = true;
+  bool _hideInvite = true;
   bool _submitting = false;
   String? _error;
 
   bool get _isRegister => _mode == AuthMode.register;
+  bool get _isTeacherSignup => _isRegister && _type == AccountType.teacher;
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _invite.dispose();
     _emailFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -83,6 +98,8 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mode == _mode) return;
     setState(() {
       _mode = mode;
+      _type = AccountType.student; // a fresh form never starts as a teacher
+      _invite.clear();
       _error = null;
       _formKey.currentState?.reset();
     });
@@ -101,6 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
           name: _name.text.trim(),
           email: email,
           password: _password.text,
+          inviteCode: _isTeacherSignup ? _invite.text.trim() : null,
         );
       } else {
         await widget.controller.login(email: email, password: _password.text);
@@ -178,6 +196,29 @@ class _AuthScreenState extends State<AuthScreen> {
                         isError: true,
                       ),
                     if (_isRegister) ...[
+                      SegmentedButton<AccountType>(
+                        key: const Key('account-type'),
+                        segments: const [
+                          ButtonSegment(
+                            value: AccountType.student,
+                            icon: Icon(Icons.school_outlined),
+                            label: Text('Sou aluno'),
+                          ),
+                          ButtonSegment(
+                            value: AccountType.teacher,
+                            icon: Icon(Icons.cast_for_education),
+                            label: Text('Sou professor'),
+                          ),
+                        ],
+                        selected: {_type},
+                        onSelectionChanged: _submitting
+                            ? null
+                            : (selection) => setState(() {
+                                _type = selection.first;
+                                _error = null;
+                              }),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(
                         key: const Key('field-name'),
                         controller: _name,
@@ -251,6 +292,38 @@ class _AuthScreenState extends State<AuthScreen> {
                           : validateExistingPassword,
                       onFieldSubmitted: (_) => _submit(),
                     ),
+                    if (_isTeacherSignup) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        key: const Key('field-invite'),
+                        controller: _invite,
+                        enabled: !_submitting,
+                        decoration: InputDecoration(
+                          labelText: 'Código de convite',
+                          helperText: 'Peça o código à sua escola',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            key: const Key('toggle-invite'),
+                            tooltip: _hideInvite
+                                ? 'Mostrar código'
+                                : 'Ocultar código',
+                            icon: Icon(
+                              _hideInvite
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            onPressed: () =>
+                                setState(() => _hideInvite = !_hideInvite),
+                          ),
+                        ),
+                        obscureText: _hideInvite,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textInputAction: TextInputAction.done,
+                        validator: validateInviteCode,
+                        onFieldSubmitted: (_) => _submit(),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     FilledButton(
                       key: const Key('auth-submit'),
@@ -261,7 +334,13 @@ class _AuthScreenState extends State<AuthScreen> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_isRegister ? 'Criar conta' : 'Entrar'),
+                          : Text(
+                              _isTeacherSignup
+                                  ? 'Criar conta de professor'
+                                  : _isRegister
+                                  ? 'Criar conta'
+                                  : 'Entrar',
+                            ),
                     ),
                   ],
                 ),

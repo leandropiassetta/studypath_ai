@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { AppError, notFound } from '../../shared/errors/app-error.js';
 import { FailureLimiter } from './limiter.js';
 import { DEFAULT_SCRYPT_COST, hashPassword, verifyPassword } from './password.js';
@@ -13,6 +13,8 @@ export interface AuthContext {
 
 export interface AuthOptions {
   sessionTtlMs: number;
+  /** Secret that lets someone sign up as a teacher. Without it, teacher sign-up is off. */
+  teacherInviteCode?: string;
   passwordCost?: number;
   now?: () => number;
 }
@@ -33,6 +35,8 @@ export class AuthService {
   private readonly loginByAccount: FailureLimiter;
   private readonly loginByIp: FailureLimiter;
   private readonly signups: FailureLimiter;
+  // Wrong invite codes: 5 per IP per 15 min, so the code cannot be guessed.
+  private readonly inviteFailures: FailureLimiter;
   private dummyHash: Promise<string> | null = null;
 
   constructor(
@@ -44,6 +48,7 @@ export class AuthService {
     this.loginByAccount = new FailureLimiter(5, 15 * 60_000, this.now);
     this.loginByIp = new FailureLimiter(20, 15 * 60_000, this.now);
     this.signups = new FailureLimiter(20, 60 * 60_000, this.now);
+    this.inviteFailures = new FailureLimiter(5, 15 * 60_000, this.now);
   }
 
   async register(input: RegisterInput, ip: string): Promise<AuthResult> {
@@ -53,12 +58,15 @@ export class AuthService {
     const email = normalizeEmail(input.email);
     const name = input.name.trim();
     if (name.length === 0) throw new AppError(400, 'INVALID_REQUEST', 'Nome inválido');
+    // The role is only ever granted here, after the invite code is checked: never trust the client.
+    const role = input.role === 'teacher' ? 'teacher' : 'student';
+    if (role === 'teacher') this.checkInviteCode(input.inviteCode, ip);
     if (await this.repo.findByEmail(email)) throw emailTaken();
 
     const passwordHash = await hashPassword(input.password, this.passwordCost);
     try {
-      const student = await this.repo.createStudent({ name, email, passwordHash });
-      return this.openSession(student.id, { id: student.id, name, email, role: 'student' });
+      const student = await this.repo.createStudent({ name, email, passwordHash, role });
+      return this.openSession(student.id, { id: student.id, name, email, role });
     } catch (err) {
       if (err instanceof EmailTakenError) throw emailTaken();
       throw err;
@@ -119,6 +127,23 @@ export class AuthService {
     const expiresAt = new Date(this.now() + this.options.sessionTtlMs);
     await this.repo.createSession(studentId, hashToken(token), expiresAt);
     return { token, expiresAt: expiresAt.toISOString(), student };
+  }
+
+  /** Constant-time comparison of the invite code; wrong guesses are rate limited per IP. */
+  private checkInviteCode(given: string | undefined, ip: string): void {
+    const expected = this.options.teacherInviteCode;
+    if (!expected) {
+      throw new AppError(403, 'TEACHER_SIGNUP_DISABLED', 'O cadastro de professor está desativado');
+    }
+    const key = `invite|${ip}`;
+    this.assertNotBlocked(this.inviteFailures, key);
+    const digest = (v: string): Buffer => createHash('sha256').update(v).digest();
+    const ok = given !== undefined && timingSafeEqual(digest(given), digest(expected));
+    if (!ok) {
+      this.inviteFailures.recordFailure(key);
+      throw new AppError(403, 'INVALID_INVITE_CODE', 'Código de convite inválido');
+    }
+    this.inviteFailures.reset(key);
   }
 
   private getDummyHash(): Promise<string> {

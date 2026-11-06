@@ -37,7 +37,12 @@ export interface AppOptions {
   /** Per-student cost guards for the LLM endpoint (defaults: 6 per minute, 50 per 24 h). */
   aiLimits?: UsageLimits;
   /** Session lifetime and scrypt cost (tests lower the cost to stay fast). */
-  auth?: { sessionTtlMs?: number; passwordCost?: number; now?: () => number };
+  auth?: {
+    sessionTtlMs?: number;
+    passwordCost?: number;
+    now?: () => number;
+    teacherInviteCode?: string;
+  };
   /** Background jobs (BullMQ). Absent = none; the API works the same without them. */
   doubtJobs?: DoubtJobs;
   logger?: boolean;
@@ -91,6 +96,7 @@ export function buildApp({
   const auth = new AuthService(new AuthRepository(dataSource), {
     sessionTtlMs: authOptions.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS,
     passwordCost: authOptions.passwordCost,
+    teacherInviteCode: authOptions.teacherInviteCode,
     now: authOptions.now,
   });
   const requireAuth = createRequireAuth(app, auth);

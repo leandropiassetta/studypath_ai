@@ -24,6 +24,8 @@ const EnvSchema = Type.Object({
   LLM_MODEL: Type.Optional(Type.String({ minLength: 1 })),
   /** OpenAI-compatible endpoint (e.g. https://api.groq.com/openai). Default: api.openai.com. */
   LLM_BASE_URL: Type.Optional(Type.String({ pattern: '^https?://' })),
+  /** Secret for teacher sign-up (min 8 chars). Without it nobody can sign up as a teacher. */
+  TEACHER_INVITE_CODE: Type.Optional(Type.String({ minLength: 8, maxLength: 128 })),
   /** Without it the background jobs are off and everything still works synchronously. */
   REDIS_URL: Type.Optional(Type.String({ pattern: '^rediss?://' })),
   /** How long before a doubt still waiting for a teacher is flagged (default: the 14 min ETA). */
@@ -58,6 +60,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     LLM_MODEL: source.LLM_MODEL || undefined,
     LLM_BASE_URL: source.LLM_BASE_URL || undefined,
     REDIS_URL: source.REDIS_URL || undefined,
+    TEACHER_INVITE_CODE: source.TEACHER_INVITE_CODE || undefined,
     SLA_DELAY_MS: numberOrUndefined(source.SLA_DELAY_MS),
   };
   const withDefaults = Value.Default(EnvSchema, Value.Clean(EnvSchema, raw)) as unknown;

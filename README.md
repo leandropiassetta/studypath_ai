@@ -97,7 +97,7 @@ No resultado, cada questão errada tem **"Tirar dúvida"**. A aluna pode escreve
 
 Depois das dicas, a aluna pode tocar em **"Chamar um professor"**: a dúvida entra numa fila (meta de resposta: **14 min**) e a tela se atualiza sozinha até a resposta chegar. Ela então marca **"isso ajudou?"** para as dicas da IA e para a resposta do professor.
 
-- **Professor:** contas de professor **não existem no cadastro** (o campo `role` enviado pela API é ignorado). Elas são criadas pelo seed, só com credenciais do ambiente:
+- **Professor:** no cadastro, o seletor **"Sou aluno / Sou professor"** só cria conta de professor com um **código de convite** (`TEACHER_INVITE_CODE`, mínimo de 8 caracteres, só no ambiente, nunca no repositório). O servidor compara o código em tempo constante, limita os chutes a 5 por IP a cada 15 min, responde igual para código errado ou ausente e **desliga o cadastro de professor** se a variável não existir. Aluno não precisa de código, e quem envia `role: teacher` sem o código certo não cria nada. Também dá para criar a conta pelo seed, só com credenciais do ambiente:
   `TEACHER_EMAIL=professora@exemplo.dev TEACHER_PASSWORD=<6+ caracteres> TEACHER_NAME="Profa. Helena" npm run db:seed`
 - Ao entrar com essa conta, o app abre a **fila de dúvidas** (aguardando / respondidas por mim), com o contexto pronto: a questão, o que o aluno marcou, o que escreveu, **o que a IA já disse** e a solução de referência. O professor vê só o **primeiro nome** do aluno.
 - **Dois professores respondendo ao mesmo tempo:** exatamente um vence (`UPDATE` condicional); o outro recebe 409 e o app avisa.

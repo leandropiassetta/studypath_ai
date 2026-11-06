@@ -92,3 +92,16 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ DATABASE_URL: 'mysql://x' })).toThrow(/DATABASE_URL/);
   });
 });
+
+describe('loadEnv: teacher invite code', () => {
+  it('is optional, and when set it must be at least 8 characters', () => {
+    expect(loadEnv({ DATABASE_URL }).TEACHER_INVITE_CODE).toBeUndefined();
+    expect(loadEnv({ DATABASE_URL, TEACHER_INVITE_CODE: '' }).TEACHER_INVITE_CODE).toBeUndefined();
+    expect(loadEnv({ DATABASE_URL, TEACHER_INVITE_CODE: 'um-codigo-ok' }).TEACHER_INVITE_CODE).toBe(
+      'um-codigo-ok',
+    );
+    expect(() => loadEnv({ DATABASE_URL, TEACHER_INVITE_CODE: 'curto' })).toThrow(
+      /TEACHER_INVITE_CODE/,
+    );
+  });
+});

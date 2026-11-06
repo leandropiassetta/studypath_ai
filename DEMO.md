@@ -24,6 +24,10 @@ Antes de repetir o ensaio: `npm run demo:reset`.
 5. **Aba da professora**: fila (só o primeiro nome da aluna) → abrir → responder.
 6. Volta à aba da aluna: a resposta chega (atualiza sozinha a cada 8 s) → **"Isso ajudou?"** para IA e para professora.
 
+## Cadastro de professor (convite)
+
+No cadastro há o seletor **Sou aluno / Sou professor**. Professor precisa do **código de convite**, definido por você em `TEACHER_INVITE_CODE` no `.env` (mínimo de 8 caracteres, fora do repositório). Para mostrar: crie uma conta de professor ao vivo com o código e ela abre direto na fila de dúvidas. _Fala:_ aluno se cadastra livremente; professor só por convite, para que ninguém se promova sozinho e veja os dados dos alunos. Errar o código é limitado a 5 tentativas por IP.
+
 ## Segundo plano (BullMQ + Redis)
 
 Ao **Chamar professor**, a API responde na hora e coloca dois jobs na fila:

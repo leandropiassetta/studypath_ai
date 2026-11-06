@@ -63,12 +63,13 @@ export class AuthRepository {
     name: string;
     email: string;
     passwordHash: string;
+    role?: 'student' | 'teacher';
   }): Promise<StudentRecord> {
     try {
       const rows = await this.ds.query<StudentRow[]>(
-        `INSERT INTO students (name, email, password_hash) VALUES ($1, $2, $3)
+        `INSERT INTO students (name, email, password_hash, role) VALUES ($1, $2, $3, $4)
          RETURNING id, name, email, password_hash, role`,
-        [input.name, input.email, input.passwordHash],
+        [input.name, input.email, input.passwordHash, input.role ?? 'student'],
       );
       return toRecord(rows[0] as StudentRow);
     } catch (err) {

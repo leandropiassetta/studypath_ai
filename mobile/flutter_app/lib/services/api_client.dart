@@ -59,16 +59,24 @@ class ApiClient {
     if (_token != null) 'authorization': 'Bearer $_token',
   };
 
+  /// A teacher account also needs the [inviteCode] the school gave; students send neither field.
   Future<AuthSession> register({
     required String name,
     required String email,
     required String password,
+    String? inviteCode,
   }) async {
     final json = await _send(
       () => _client.post(
         _uri('/auth/register'),
         headers: _headers(json: true),
-        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'password': password,
+          if (inviteCode != null) 'role': 'teacher',
+          'inviteCode': ?inviteCode,
+        }),
       ),
       authenticated: false,
     );

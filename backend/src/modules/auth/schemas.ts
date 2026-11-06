@@ -8,6 +8,9 @@ export const RegisterBody = Type.Object(
     name: Type.String({ minLength: 1, maxLength: 80 }),
     email: Type.String({ format: 'email', maxLength: 254 }),
     password: Type.String({ minLength: MIN_PASSWORD_LENGTH, maxLength: MAX_PASSWORD_LENGTH }),
+    // Optional: students need neither. A teacher account needs the invite code.
+    role: Type.Optional(Type.Union([Type.Literal('student'), Type.Literal('teacher')])),
+    inviteCode: Type.Optional(Type.String({ maxLength: 128 })),
   },
   { additionalProperties: false },
 );
