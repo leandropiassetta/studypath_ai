@@ -65,6 +65,7 @@ Map<String, Object?> teacherItem({
   String? misconception,
   String status = 'WAITING_TEACHER',
   String? answer,
+  bool? slaBreached,
 }) => {
   'id': id,
   'status': status,
@@ -87,6 +88,7 @@ Map<String, Object?> teacherItem({
   ],
   'requestedAt': '2026-01-01T10:00:00.000Z',
   'waitingMinutes': waiting,
+  'slaBreached': ?slaBreached,
   'answer': answer,
   'answeredAt': answer == null ? null : '2026-01-01T10:09:00.000Z',
 };
@@ -458,6 +460,39 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
+
+    testWidgets('flags only the doubts that waited past the promised time', (
+      tester,
+    ) async {
+      await pumpQueue(
+        tester,
+        apiWith(
+          MockClient(
+            (_) async => json([
+              teacherItem(
+                id: 'a',
+                name: 'Maria',
+                waiting: 20,
+                slaBreached: true,
+              ),
+              teacherItem(
+                id: 'b',
+                name: 'João',
+                waiting: 2,
+                slaBreached: false,
+              ),
+              teacherItem(
+                id: 'c',
+                name: 'Ana',
+                waiting: 3,
+              ), // older API: field missing
+            ]),
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('sla-breached')), findsOneWidget);
+      expect(find.text('Prazo vencido'), findsOneWidget);
+    });
 
     testWidgets(
       'lists waiting doubts with first name, topic, wait and what the AI did',

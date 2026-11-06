@@ -88,6 +88,8 @@ export const TeacherDoubtResponse = Type.Object({
   aiHints: Type.Array(HintView),
   requestedAt: Type.String(),
   waitingMinutes: Type.Integer(),
+  /** True when it waited past the promised time (flagged by the delayed job). */
+  slaBreached: Type.Boolean(),
   answer: Type.Union([Type.String(), Type.Null()]),
   answeredAt: Type.Union([Type.String(), Type.Null()]),
 });

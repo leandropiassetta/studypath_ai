@@ -1,10 +1,12 @@
 import {
+  ANALYZE_SYSTEM_PROMPT,
+  buildAnalyzeMessage,
   buildHintMessage,
   buildUserMessage,
   HINT_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from '../prompt.js';
-import type { ExplanationInput, ExplanationProvider, HintInput } from './types.js';
+import type { AnalysisInput, ExplanationInput, ExplanationProvider, HintInput } from './types.js';
 
 export interface OpenAIOptions {
   apiKey: string;
@@ -29,6 +31,10 @@ export class OpenAIExplanationProvider implements ExplanationProvider {
 
   hint(input: HintInput, signal: AbortSignal): Promise<unknown> {
     return this.chat(HINT_SYSTEM_PROMPT, buildHintMessage(input), 500, signal);
+  }
+
+  analyze(input: AnalysisInput, signal: AbortSignal): Promise<unknown> {
+    return this.chat(ANALYZE_SYSTEM_PROMPT, buildAnalyzeMessage(input), 200, signal);
   }
 
   private async chat(

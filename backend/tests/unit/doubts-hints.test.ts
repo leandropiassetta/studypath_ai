@@ -180,3 +180,39 @@ describe('providers', () => {
     }
   });
 });
+
+describe('analysis (teacher context)', () => {
+  it('parseAnalysis accepts {misconception} only', async () => {
+    const { parseAnalysis } = await import('../../src/modules/ai/validate.js');
+    expect(parseAnalysis('{"misconception":"  Trocou os lados "}')).toBe('Trocou os lados');
+    for (const bad of [
+      null,
+      'texto',
+      { hint: 'x' },
+      { misconception: '' },
+      { misconception: 'x'.repeat(301) },
+      { misconception: 'x', extra: 1 },
+    ]) {
+      expect(parseAnalysis(bad)).toBeNull();
+    }
+  });
+
+  it('the OpenAI-compatible provider honours a custom base URL and keeps the key in a header', async () => {
+    const urls: string[] = [];
+    const provider = new OpenAIExplanationProvider({
+      apiKey: 'sk-test-secret',
+      model: 'm',
+      baseUrl: 'https://api.groq.com/openai',
+      fetchImpl: (async (url: string | URL | Request, init?: RequestInit) => {
+        urls.push(String(url));
+        expect(String(init?.body)).not.toContain('sk-test-secret');
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: '{"misconception":"ok"}' } }] }),
+          { status: 200 },
+        );
+      }) as unknown as typeof fetch,
+    });
+    await provider.analyze(input(1), new AbortController().signal);
+    expect(urls).toEqual(['https://api.groq.com/openai/v1/chat/completions']);
+  });
+});

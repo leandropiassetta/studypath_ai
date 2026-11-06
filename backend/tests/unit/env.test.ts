@@ -5,7 +5,7 @@ const DATABASE_URL = 'postgres://u:p@127.0.0.1:5432/db';
 
 describe('loadEnv', () => {
   it('applies safe defaults (loopback host, port 3000)', () => {
-    expect(loadEnv({ DATABASE_URL })).toEqual({
+    expect(loadEnv({ DATABASE_URL })).toMatchObject({
       APP_ENV: 'demo',
       HOST: '127.0.0.1',
       PORT: 3000,
@@ -17,7 +17,21 @@ describe('loadEnv', () => {
       AI_MAX_CALLS_PER_MINUTE: 6,
       AI_MAX_CALLS_PER_DAY: 50,
       AI_TIMEOUT_MS: 8000,
+      SLA_DELAY_MS: 14 * 60_000,
     });
+  });
+
+  it('keeps background jobs off without REDIS_URL and validates the new settings', () => {
+    expect(loadEnv({ DATABASE_URL }).REDIS_URL).toBeUndefined();
+    expect(loadEnv({ DATABASE_URL, REDIS_URL: 'redis://127.0.0.1:6379' }).REDIS_URL).toMatch(
+      /^redis:/,
+    );
+    expect(() => loadEnv({ DATABASE_URL, REDIS_URL: 'http://x' })).toThrow(/REDIS_URL/);
+    expect(
+      loadEnv({ DATABASE_URL, LLM_BASE_URL: 'https://api.groq.com/openai' }).LLM_BASE_URL,
+    ).toBe('https://api.groq.com/openai');
+    expect(() => loadEnv({ DATABASE_URL, LLM_BASE_URL: 'ftp://x' })).toThrow(/LLM_BASE_URL/);
+    expect(() => loadEnv({ DATABASE_URL, SLA_DELAY_MS: '5' })).toThrow(/SLA_DELAY_MS/);
   });
 
   it('parses PORT from string', () => {

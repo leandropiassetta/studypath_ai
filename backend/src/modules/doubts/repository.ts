@@ -60,6 +60,7 @@ export interface TeacherRow {
   message: string | null;
   hints_used: number;
   misconception: string | null;
+  sla_breached_at: Date | null;
   teacher_requested_at: Date;
   answered_at: Date | null;
   teacher_answer: string | null;
@@ -129,6 +130,33 @@ export class DoubtRepository {
     return result[0][0]?.hints_used ?? null;
   }
 
+  /** Job side: no owner check, the job acts on behalf of the system. */
+  async findById(doubtId: string): Promise<DoubtRecord | null> {
+    const rows = await this.ds.query<Row[]>(`SELECT ${COLUMNS} FROM doubts WHERE id = $1`, [
+      doubtId,
+    ]);
+    return rows[0] ? toRecord(rows[0]) : null;
+  }
+
+  /** Never overwrites a value already there, so a repeated job changes nothing. */
+  async saveMisconception(doubtId: string, text: string): Promise<void> {
+    await this.ds.query(
+      'UPDATE doubts SET misconception = $2 WHERE id = $1 AND misconception IS NULL',
+      [doubtId, text.slice(0, 300)],
+    );
+  }
+
+  /** True only the first time, and only while the doubt is still waiting for a teacher. */
+  async markSlaBreached(doubtId: string): Promise<boolean> {
+    const result = await this.ds.query<[unknown[], number]>(
+      `UPDATE doubts SET sla_breached_at = now()
+       WHERE id = $1 AND status = 'WAITING_TEACHER' AND sla_breached_at IS NULL
+       RETURNING id`,
+      [doubtId],
+    );
+    return result[0].length > 0;
+  }
+
   async saveHint(doubtId: string, hint: StoredHint): Promise<void> {
     await this.ds.query(
       `INSERT INTO doubt_hints (doubt_id, level, text, source) VALUES ($1, $2, $3, $4)
@@ -185,7 +213,7 @@ export class DoubtRepository {
   async teacherList(status: 'waiting' | 'answered', teacherId: string): Promise<TeacherRow[]> {
     const waiting = status === 'waiting';
     const rows = await this.ds.query<TeacherRow[]>(
-      `SELECT d.id, d.status, d.message, d.hints_used, d.misconception, d.teacher_requested_at,
+      `SELECT d.id, d.status, d.message, d.hints_used, d.misconception, d.sla_breached_at, d.teacher_requested_at,
               d.answered_at, d.teacher_answer, st.name AS student_name, t.name AS topic,
               q.statement, q.options, q.correct_option, q.reference_explanation,
               aa.selected_option

@@ -110,6 +110,7 @@ class TeacherDoubt {
     required this.hintsUsed,
     required this.aiHints,
     required this.waitingMinutes,
+    this.slaBreached = false,
     this.message,
     this.misconception,
     this.answer,
@@ -139,6 +140,7 @@ class TeacherDoubt {
         .map((h) => DoubtHint.fromJson(h as Map<String, dynamic>))
         .toList(),
     waitingMinutes: json['waitingMinutes'] as int,
+    slaBreached: json['slaBreached'] as bool? ?? false,
     answer: json['answer'] as String?,
   );
 
@@ -158,6 +160,9 @@ class TeacherDoubt {
   final int hintsUsed;
   final List<DoubtHint> aiHints;
   final int waitingMinutes;
+
+  /// Still waiting past the promised time (flagged by the delayed background job).
+  final bool slaBreached;
   final String? answer;
 
   bool get isAnswered => status == 'ANSWERED';

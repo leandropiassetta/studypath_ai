@@ -194,6 +194,15 @@ class _TeacherQueueScreenState extends State<TeacherQueueScreen> {
                           ? 'respondida'
                           : 'aguardando há ${plural(d.waitingMinutes, 'minuto', 'minutos')}',
                     ),
+                    if (d.slaBreached && !d.isAnswered)
+                      Text(
+                        'Prazo vencido',
+                        key: const Key('sla-breached'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
                     if (d.hintsUsed > 0)
                       Text('IA deu ${plural(d.hintsUsed, 'dica', 'dicas')}'),
                   ],

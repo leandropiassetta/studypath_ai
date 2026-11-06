@@ -18,9 +18,10 @@ echo
 echo "Infraestrutura"
 check "Docker responde"                                  docker info
 check "PostgreSQL saudável"                              bash -c 'docker compose ps --format "{{.Status}}" | grep -q healthy'
+check "Redis saudável (fila BullMQ)"                    bash -c 'docker compose ps --format "{{.Name}} {{.Status}}" | grep redis | grep -q healthy'
 check "API responde (/health)"                           curl -fsS "$API_URL/health"
 migrations="$(psql_local 'SELECT count(*) FROM migrations' 2>/dev/null || echo 0)"
-if [ "${migrations:-0}" -ge 6 ]; then ok "Migrations aplicadas ($migrations)"; else fail "Migrations faltando (achei $migrations, esperado 6+): npm run demo:setup"; failed=1; fi
+if [ "${migrations:-0}" -ge 7 ]; then ok "Migrations aplicadas ($migrations)"; else fail "Migrations faltando (achei $migrations, esperado 7+): npm run demo:setup"; failed=1; fi
 check "Flutter instalado"                                flutter --version
 check "Chrome instalado"                                 test -d "/Applications/Google Chrome.app"
 
@@ -34,7 +35,7 @@ if [ -n "${DEMO_TOKEN:-}" ]; then ok "Aluna demo consegue entrar ($DEMO_EMAIL)";
 echo
 echo "Fluxo completo com uma conta descartável (cadastro → simulado → dúvida → dica → professora → resposta)"
 RESULT="$(API_URL="$API_URL" TEACHER_TOKEN="${TEACHER_TOKEN:-}" python3 - <<'PY' 2>&1
-import json, os, urllib.request, uuid
+import json, os, time, urllib.request, uuid
 
 api = os.environ["API_URL"]
 
@@ -62,10 +63,17 @@ try:
     teacher_token = os.environ.get("TEACHER_TOKEN")
     queue = call("GET", "/api/v1/teacher/doubts", token=teacher_token) if teacher_token else []
     in_queue = any(d["id"] == doubt["id"] for d in queue)
+    enriched = False
+    for _ in range(20):  # the background job fills the context for the teacher within a few seconds
+        item = next((d for d in call("GET", "/api/v1/teacher/doubts", token=teacher_token) if d["id"] == doubt["id"]), None) if teacher_token else None
+        if item and item["misconception"]:
+            enriched = True
+            break
+        time.sleep(0.5)
     if teacher_token and in_queue:
         call("POST", f"/api/v1/teacher/doubts/{doubt['id']}/answer", {"answer": "Resposta do verificador."}, teacher_token)
     final = call("GET", f"/api/v1/doubts/{doubt['id']}", token=token)
-    print(json.dumps({"source": hint["source"], "level": hint["level"], "in_queue": in_queue, "answered": final["status"] == "ANSWERED"}))
+    print(json.dumps({"source": hint["source"], "level": hint["level"], "in_queue": in_queue, "enriched": enriched, "answered": final["status"] == "ANSWERED"}))
 except Exception as exc:  # noqa: BLE001
     print(json.dumps({"error": str(exc)[:120]}))
 PY
@@ -73,10 +81,12 @@ PY
 if printf '%s' "$RESULT" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read().strip().splitlines()[-1]); sys.exit(0 if "error" not in d else 1)' 2>/dev/null; then
   SRC="$(printf '%s' "$RESULT" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().strip().splitlines()[-1])["source"])')"
   INQ="$(printf '%s' "$RESULT" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().strip().splitlines()[-1])["in_queue"])')"
+  ENR="$(printf '%s' "$RESULT" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().strip().splitlines()[-1])["enriched"])')"
   ANS="$(printf '%s' "$RESULT" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read().strip().splitlines()[-1])["answered"])')"
   ok "Dica de IA entregue (fonte: $SRC)"
   if [ "$SRC" = "reference" ]; then info "A fonte é 'reference': a IA está desligada, em mock-sem-chave ou falhou. Com AI_MODE=real isso indica problema de chave/rede."; fi
   if [ "$INQ" = "True" ]; then ok "Dúvida apareceu na fila da professora"; else fail "Dúvida NÃO apareceu na fila"; failed=1; fi
+  if [ "$ENR" = "True" ]; then ok "Job em segundo plano (BullMQ) preencheu o equívoco para a professora"; else fail "Job em segundo plano NÃO rodou: a API foi iniciada com REDIS_URL? (veja DEMO.md)"; failed=1; fi
   if [ "$ANS" = "True" ]; then ok "Professora respondeu e a aluna recebeu"; else fail "Resposta do professor não chegou à aluna"; failed=1; fi
 else
   fail "O fluxo completo falhou: $(printf '%s' "$RESULT" | tail -1)"; failed=1

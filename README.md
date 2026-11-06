@@ -145,3 +145,9 @@ Os testes de integração usam o banco isolado `studypath_test` (criado pelo Doc
 - O simulado tem poucas questões fixas, então repetir tentativas pode medir memorização. A tela de recomendações mostra a **evolução por tentativa** e avisa que isso não prova aprendizado; só questões novas medem isso de verdade, e o banco tem poucas (8 extras por assunto). Quando acabam, o quiz de revisão refaz as questões ainda erradas, o que a tela avisa.
 - Sem recuperação de senha, confirmação de e-mail, autenticação em dois fatores ou ranking. O limite de tentativas de login fica em memória (zera ao reiniciar a API).
 - O app Flutter tem apenas a plataforma web gerada; Android e iOS (`flutter create --platforms=android,ios .`) ficam para a etapa de testes em dispositivo.
+
+## Tarefas em segundo plano (BullMQ + Redis)
+
+Opcional: defina `REDIS_URL` (o `npm run db:up` já sobe o Redis). Ao chamar a professora, a API enfileira (1) um job que pede à IA o provável equívoco do aluno e grava em `doubts.misconception`, com 3 tentativas e espera exponencial, e frase simples como fallback; (2) um job atrasado (`SLA_DELAY_MS`, padrão 14 min) que marca `sla_breached_at` se a dúvida continua sem resposta. Jobs usam o id da dúvida como `jobId` (idempotente); se o Redis estiver fora, o pedido segue normalmente.
+
+`LLM_BASE_URL` permite usar qualquer provedor compatível com a API da OpenAI, como o plano gratuito do Groq (ver `.env.example`).

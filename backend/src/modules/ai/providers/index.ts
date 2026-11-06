@@ -14,6 +14,7 @@ export function createExplanationProvider(env: Env): ExplanationProvider | null 
         ? new OpenAIExplanationProvider({
             apiKey: env.LLM_API_KEY as string,
             model: env.LLM_MODEL as string,
+            baseUrl: env.LLM_BASE_URL?.replace(/\/+$/, ''),
           })
         : new AnthropicExplanationProvider({
             apiKey: env.LLM_API_KEY as string,

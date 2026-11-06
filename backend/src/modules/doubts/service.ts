@@ -5,6 +5,7 @@ import type { ExplanationRepository } from '../ai/repository.js';
 import { withTimeout } from '../ai/timeout.js';
 import { DEFAULT_USAGE_LIMITS, UsageLimiter, type UsageLimits } from '../ai/usage.js';
 import { parseHint } from '../ai/validate.js';
+import type { DoubtJobs } from './jobs.js';
 import { leaksAnswer, referenceHint } from './hints.js';
 import type { DoubtRecord, DoubtRepository } from './repository.js';
 import {
@@ -31,6 +32,7 @@ export class DoubtService {
     private readonly timeoutMs: number,
     limits: UsageLimits = DEFAULT_USAGE_LIMITS,
     now: () => number = Date.now,
+    private readonly jobs?: DoubtJobs,
   ) {
     this.limiter = new UsageLimiter(limits, now);
     this.now = now;
@@ -150,7 +152,11 @@ export class DoubtService {
   async requestTeacher(studentId: string, doubtId: string): Promise<DoubtView> {
     const doubt = await this.doubts.findOwned(doubtId, studentId);
     if (!doubt) throw notFound('DOUBT_NOT_FOUND', 'Dúvida não encontrada');
-    if (doubt.status === 'AI_HINTS') await this.doubts.requestTeacher(doubtId, studentId);
+    if (doubt.status === 'AI_HINTS') {
+      await this.doubts.requestTeacher(doubtId, studentId);
+      // Background work never blocks or fails the request: the queue is a bonus, not a dependency.
+      await this.jobs?.onTeacherRequested(doubtId);
+    }
     return this.get(studentId, doubtId);
   }
 
@@ -195,6 +201,7 @@ export class DoubtService {
       hintsUsed: r.hints_used,
       aiHints: hints.get(r.id) ?? [],
       requestedAt: r.teacher_requested_at.toISOString(),
+      slaBreached: r.sla_breached_at !== null,
       waitingMinutes: Math.max(0, Math.floor((now - r.teacher_requested_at.getTime()) / 60_000)),
       answer: r.teacher_answer,
       answeredAt: r.answered_at?.toISOString() ?? null,

@@ -6,7 +6,7 @@ Contas fictícias, só neste computador: aluna `aluna.demo@exemplo.dev` / `demo1
 
 ```bash
 npm run demo:setup                                   # banco, migrations, seed, contas
-AI_MODE=mock PORT=3100 node --env-file=.env backend/dist/server.js   # API (outro terminal)
+REDIS_URL=redis://127.0.0.1:6379 AI_MODE=mock PORT=3100 node --env-file=.env backend/dist/server.js   # API (outro terminal)
 npm run demo:reset                                   # aluna volta ao estado inicial (25% → 50%)
 npm run demo:check                                   # tudo deve sair verde
 cd mobile/flutter_app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3100
@@ -24,6 +24,19 @@ Antes de repetir o ensaio: `npm run demo:reset`.
 5. **Aba da professora**: fila (só o primeiro nome da aluna) → abrir → responder.
 6. Volta à aba da aluna: a resposta chega (atualiza sozinha a cada 8 s) → **"Isso ajudou?"** para IA e para professora.
 
+## Segundo plano (BullMQ + Redis)
+
+Ao **Chamar professor**, a API responde na hora e coloca dois jobs na fila:
+
+1. **Enriquecer a dúvida**: a IA resume o provável equívoco para a professora. Até 3 tentativas com espera crescente; se a IA continuar fora, grava uma frase simples ("Marcou A em vez de B") — a fila da professora nunca depende do modelo.
+2. **Prazo (14 min)**: job atrasado que marca "Prazo vencido" se ninguém respondeu. Para mostrar ao vivo: suba a API com `SLA_DELAY_MS=10000`.
+
+O id do job é o id da dúvida, então chamar duas vezes não duplica. Se o Redis cair, o pedido da aluna continua funcionando (o enfileiramento tem limite de 2 s).
+
+## IA gratuita (Groq)
+
+Crie uma chave grátis em console.groq.com e suba a API com `AI_MODE=real LLM_PROVIDER=openai LLM_BASE_URL=https://api.groq.com/openai LLM_MODEL=llama-3.3-70b-versatile LLM_API_KEY=...` (a chave vai em variável de ambiente, nunca no repositório). O plano grátis tem limite por minuto/dia: se estourar, cai no texto de referência.
+
 ## O que dizer sobre as decisões
 
 - IA só explica e dá dica; **nota e prioridade nunca dependem do LLM**.
@@ -37,7 +50,7 @@ Antes de repetir o ensaio: `npm run demo:reset`.
 
 - A professora é simulada; a regra de 60% e de 2 respostas é uma heurística **não validada pedagogicamente**.
 - Sessão do app só em memória; sem recuperação de senha.
-- BullMQ não foi usado: o fluxo de hoje é síncrono. O lugar natural seria enriquecer a dúvida com IA (tema/equívoco) com retry, e o alerta do prazo de 14 min.
+- A fila é opcional: sem `REDIS_URL` tudo funciona igual, só sem o resumo para a professora e sem o alerta de prazo.
 
 ## Se algo der errado
 

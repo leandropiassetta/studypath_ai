@@ -22,6 +22,12 @@ const EnvSchema = Type.Object({
   AI_TIMEOUT_MS: Type.Integer({ minimum: 100, maximum: 60000, default: 8000 }),
   LLM_API_KEY: Type.Optional(Type.String({ minLength: 1 })),
   LLM_MODEL: Type.Optional(Type.String({ minLength: 1 })),
+  /** OpenAI-compatible endpoint (e.g. https://api.groq.com/openai). Default: api.openai.com. */
+  LLM_BASE_URL: Type.Optional(Type.String({ pattern: '^https?://' })),
+  /** Without it the background jobs are off and everything still works synchronously. */
+  REDIS_URL: Type.Optional(Type.String({ pattern: '^rediss?://' })),
+  /** How long before a doubt still waiting for a teacher is flagged (default: the 14 min ETA). */
+  SLA_DELAY_MS: Type.Integer({ minimum: 1000, maximum: 86_400_000, default: 14 * 60_000 }),
 });
 
 export type Env = Static<typeof EnvSchema>;
@@ -50,6 +56,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     LLM_PROVIDER: source.LLM_PROVIDER || undefined,
     LLM_API_KEY: source.LLM_API_KEY || undefined,
     LLM_MODEL: source.LLM_MODEL || undefined,
+    LLM_BASE_URL: source.LLM_BASE_URL || undefined,
+    REDIS_URL: source.REDIS_URL || undefined,
+    SLA_DELAY_MS: numberOrUndefined(source.SLA_DELAY_MS),
   };
   const withDefaults = Value.Default(EnvSchema, Value.Clean(EnvSchema, raw)) as unknown;
   if (!Value.Check(EnvSchema, withDefaults)) {

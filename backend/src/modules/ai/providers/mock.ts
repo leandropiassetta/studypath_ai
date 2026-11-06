@@ -1,4 +1,4 @@
-import type { ExplanationInput, ExplanationProvider, HintInput } from './types.js';
+import type { AnalysisInput, ExplanationInput, ExplanationProvider, HintInput } from './types.js';
 
 /** Deterministic stand-in for an LLM: no network, no key. Used for demos and tests. */
 export class MockExplanationProvider implements ExplanationProvider {
@@ -7,6 +7,12 @@ export class MockExplanationProvider implements ExplanationProvider {
       explanation:
         `[mock] Você marcou ${input.selectedOption}, mas a alternativa correta é ` +
         `${input.correctOption}. ${input.referenceExplanation}`,
+    };
+  }
+
+  async analyze(input: AnalysisInput): Promise<unknown> {
+    return {
+      misconception: `[mock] Marcou ${input.selectedOption} em vez de ${input.correctOption}: provável confusão no passo central do método.`,
     };
   }
 

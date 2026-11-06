@@ -11,6 +11,7 @@ import { AttemptService } from './modules/attempts/service.js';
 import { AuthRepository } from './modules/auth/repository.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { AuthService, DEFAULT_SESSION_TTL_MS } from './modules/auth/service.js';
+import type { DoubtJobs } from './modules/doubts/jobs.js';
 import { DoubtRepository } from './modules/doubts/repository.js';
 import { doubtRoutes, teacherRoutes } from './modules/doubts/routes.js';
 import { DoubtService } from './modules/doubts/service.js';
@@ -37,6 +38,8 @@ export interface AppOptions {
   aiLimits?: UsageLimits;
   /** Session lifetime and scrypt cost (tests lower the cost to stay fast). */
   auth?: { sessionTtlMs?: number; passwordCost?: number; now?: () => number };
+  /** Background jobs (BullMQ). Absent = none; the API works the same without them. */
+  doubtJobs?: DoubtJobs;
   logger?: boolean;
 }
 
@@ -46,6 +49,7 @@ export function buildApp({
   aiTimeoutMs = 8000,
   aiLimits,
   auth: authOptions = {},
+  doubtJobs,
   logger = false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -120,6 +124,8 @@ export function buildApp({
         explanationProvider,
         aiTimeoutMs,
         aiLimits,
+        Date.now,
+        doubtJobs,
       );
       await api.register(doubtRoutes(doubtService));
       // Teacher area: a second hook on top of the login (students get 403).

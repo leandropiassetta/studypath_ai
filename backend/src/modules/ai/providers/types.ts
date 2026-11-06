@@ -7,6 +7,12 @@ export interface ExplanationInput {
   referenceExplanation: string;
 }
 
+/** What the background job sends: the same question data, plus the student's own words. */
+export interface AnalysisInput extends ExplanationInput {
+  /** UNTRUSTED free text from the student. */
+  studentMessage?: string;
+}
+
 export type HintLevel = 1 | 2 | 3;
 
 /** Same data as an explanation, plus how far the guidance may go and what the student wrote. */
@@ -24,4 +30,6 @@ export interface ExplanationProvider {
   explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown>;
   /** Optional: providers without it make the doubt flow use the reference hints. */
   hint?(input: HintInput, signal: AbortSignal): Promise<unknown>;
+  /** Optional: the probable misconception behind the wrong answer, for the teacher's queue. */
+  analyze?(input: AnalysisInput, signal: AbortSignal): Promise<unknown>;
 }
