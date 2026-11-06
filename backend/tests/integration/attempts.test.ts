@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
 import { DEMO_QUIZ_ID } from '../../src/database/seeds/data.js';
@@ -247,16 +248,77 @@ describe('idempotency (RN-05)', () => {
     expect(row.correct_count).toBe(8);
   });
 
-  it('replays the stored result even if the answer key changes later', async () => {
+  /** Edits that must never change an attempt that was already graded. */
+  async function withEditedContent<T>(run: () => Promise<T>): Promise<T> {
+    const first = QUESTION_IDS[0];
+    await ds.query(
+      `UPDATE questions SET correct_option = 'A', reference_explanation = 'TEXTO NOVO' WHERE id = $1`,
+      [first],
+    );
+    await ds.query(`UPDATE topics SET name = name || ' (renomeado)'`);
+    await ds.query(`DELETE FROM quiz_questions WHERE question_id = $1`, [QUESTION_IDS[7]]);
+    try {
+      return await run();
+    } finally {
+      await ds.query(
+        `UPDATE questions SET correct_option = 'B', reference_explanation = 'Subtraia 2 dos dois lados: x = 5 - 2 = 3.' WHERE id = $1`,
+        [first],
+      );
+      await ds.query(`UPDATE topics SET name = replace(name, ' (renomeado)', '')`);
+      await ds.query(
+        `INSERT INTO quiz_questions (quiz_id, question_id, position) VALUES ($1, $2, 8)`,
+        [DEMO_QUIZ_ID, QUESTION_IDS[7]],
+      );
+    }
+  }
+
+  it('a replay returns the ORIGINAL result, field by field, even after the content is edited', async () => {
     const first = await post(body(CORRECT, { requestId: rid }));
-    await ds.query(`UPDATE questions SET correct_option = 'A' WHERE id = $1`, [QUESTION_IDS[0]]);
+    expect(first.statusCode).toBe(201);
+    const replay = await withEditedContent(() => post(body(CORRECT, { requestId: rid })));
+    expect(replay.statusCode).toBe(200);
+    // Everything the student saw: gabarito, explanation, topic names, totals, scores.
+    expect(replay.json()).toEqual(first.json());
+    expect(replay.json().answers[0]).toMatchObject({ isCorrect: true, correctOption: 'B' });
+    expect(replay.json().answers[0].referenceExplanation).not.toBe('TEXTO NOVO');
+    expect(replay.json().totalCount).toBe(8); // a question left the quiz, the result keeps 8
+  });
+
+  it('the snapshot is stored with the attempt, and is what the replay serves', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    const [row] = await ds.query(`SELECT result FROM attempts WHERE id = $1`, [
+      first.json().attemptId,
+    ]);
+    expect(row.result.correctCount).toBe(8);
+    expect(row.result.answers[0].correctOption).toBe('B');
+    expect(row.result.attemptId).toBeUndefined(); // ids come from the row, not the snapshot
+  });
+
+  it('an attempt made before snapshots is rebuilt once on its first replay, then frozen', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    await ds.query(`UPDATE attempts SET result = NULL WHERE id = $1`, [first.json().attemptId]); // legacy row
+    const rebuilt = await post(body(CORRECT, { requestId: rid }));
+    expect(rebuilt.statusCode).toBe(200);
+    expect(rebuilt.json()).toEqual(first.json());
+    const [row] = await ds.query(`SELECT result FROM attempts WHERE id = $1`, [
+      first.json().attemptId,
+    ]);
+    expect(row.result).not.toBeNull(); // frozen now
+    const later = await withEditedContent(() => post(body(CORRECT, { requestId: rid })));
+    expect(later.json()).toEqual(first.json());
+  });
+
+  it('a valid attempt can still be replayed after its quiz is deactivated; new ones are refused', async () => {
+    const first = await post(body(CORRECT, { requestId: rid }));
+    await ds.query(`UPDATE quizzes SET is_active = false WHERE id = $1`, [DEMO_QUIZ_ID]);
     try {
       const replay = await post(body(CORRECT, { requestId: rid }));
       expect(replay.statusCode).toBe(200);
-      expect(replay.json().correctCount).toBe(first.json().correctCount);
-      expect(replay.json().answers[0].isCorrect).toBe(true);
+      expect(replay.json()).toEqual(first.json());
+      const fresh = await post(body(CORRECT, { requestId: randomUUID() }));
+      expect(fresh.statusCode).toBe(404);
     } finally {
-      await ds.query(`UPDATE questions SET correct_option = 'B' WHERE id = $1`, [QUESTION_IDS[0]]);
+      await ds.query(`UPDATE quizzes SET is_active = true WHERE id = $1`, [DEMO_QUIZ_ID]);
     }
   });
 
@@ -274,7 +336,14 @@ describe('idempotency (RN-05)', () => {
     const other = await post(
       body(CORRECT, { requestId: rid, quizId: '99999999-9999-4999-8999-999999999999' }),
     );
-    expect(other.statusCode).toBe(404); // unknown quiz is rejected before idempotency
+    // The requestId is already taken by a different payload: that is a conflict, not a new quiz.
+    expect(other.statusCode).toBe(409);
+    expect(other.json().error.code).toBe('REQUEST_ID_CONFLICT');
+    // A fresh requestId for an unknown quiz is simply not found.
+    const unknown = await post(
+      body(CORRECT, { requestId: randomUUID(), quizId: '99999999-9999-4999-8999-999999999999' }),
+    );
+    expect(unknown.statusCode).toBe(404);
   });
 
   it('concurrent identical requests create exactly one attempt (one 201, the rest 200)', async () => {

@@ -55,6 +55,10 @@ export class Attempt {
   })
   scorePct!: number;
 
+  /** The graded result as first returned; replays serve this, never a re-grade. */
+  @Column({ name: 'result', type: 'jsonb', nullable: true })
+  result!: object | null;
+
   @CreateDateColumn({ name: 'submitted_at', type: 'timestamptz' })
   submittedAt!: Date;
 }

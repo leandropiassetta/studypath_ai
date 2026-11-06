@@ -23,6 +23,8 @@ export interface StoredAttempt {
   id: string;
   quizId: string;
   payloadHash: string;
+  /** The result as first returned; null for attempts made before snapshots existed. */
+  result: GradedAttempt | null;
 }
 
 /** Thrown when (student_id, request_id) already exists: a concurrent or repeated submission. */
@@ -69,7 +71,14 @@ export class AttemptRepository {
 
   async findByRequest(studentId: string, requestId: string): Promise<StoredAttempt | null> {
     const row = await this.ds.getRepository(Attempt).findOneBy({ studentId, requestId });
-    return row ? { id: row.id, quizId: row.quizId, payloadHash: row.payloadHash } : null;
+    return row
+      ? {
+          id: row.id,
+          quizId: row.quizId,
+          payloadHash: row.payloadHash,
+          result: row.result as GradedAttempt | null,
+        }
+      : null;
   }
 
   /** Persisted selections and correctness of an attempt, for replaying the original result. */
@@ -81,6 +90,14 @@ export class AttemptRepository {
       answers: rows.map((r) => ({ questionId: r.questionId, selectedOption: r.selectedOption })),
       correctness: new Map(rows.map((r) => [r.questionId, r.isCorrect])),
     };
+  }
+
+  /** Fills the snapshot of an old attempt once; never overwrites an existing one. */
+  async saveResultIfMissing(attemptId: string, graded: GradedAttempt): Promise<void> {
+    await this.ds.query('UPDATE attempts SET result = $2 WHERE id = $1 AND result IS NULL', [
+      attemptId,
+      JSON.stringify(graded),
+    ]);
   }
 
   /**
@@ -107,6 +124,7 @@ export class AttemptRepository {
         correctCount: graded.correctCount,
         totalCount: graded.totalCount,
         scorePct: graded.scorePct,
+        result: graded,
       });
       const attemptId = (inserted.identifiers[0] as { id: string }).id;
       await m.insert(

@@ -14,19 +14,21 @@ export class AttemptService {
   constructor(private readonly attempts: AttemptRepository) {}
 
   /**
-   * Check order: 403 student mismatch -> 404 quiz -> idempotency lookup (200 / 409)
-   * -> 400 answers -> grade and persist. A concurrent duplicate loses the unique index
-   * race and is resolved by re-reading the winning attempt.
+   * Check order: 403 student mismatch -> idempotency lookup (200 / 409) -> 404 quiz
+   * -> 400 answers -> grade and persist. The replay comes BEFORE the "quiz is active" check: a
+   * valid attempt must stay retrievable even if the quiz was deactivated afterwards. A concurrent
+   * duplicate loses the unique index race and is resolved by re-reading the winning attempt.
    */
   async submit(authStudentId: string, input: CreateAttemptInput): Promise<SubmitOutcome> {
     assertSameStudent(input.studentId, authStudentId);
-    if (!(await this.attempts.quizIsActive(input.quizId))) {
-      throw notFound('QUIZ_NOT_FOUND', 'Simulado não encontrado');
-    }
 
     const payloadHash = canonicalPayloadHash(input.quizId, input.answers);
     const existing = await this.attempts.findByRequest(input.studentId, input.requestId);
     if (existing) return this.replay(existing, payloadHash);
+
+    if (!(await this.attempts.quizIsActive(input.quizId))) {
+      throw notFound('QUIZ_NOT_FOUND', 'Simulado não encontrado');
+    }
 
     const keys = await this.attempts.getQuizKeys(input.quizId);
     const issues = validateAnswers(keys, input.answers);
@@ -61,9 +63,19 @@ export class AttemptService {
         'requestId já utilizado com conteúdo diferente',
       );
     }
+    // The result exactly as the student first saw it: never re-graded against current questions.
+    if (existing.result) {
+      return {
+        created: false,
+        result: { attemptId: existing.id, quizId: existing.quizId, ...existing.result },
+      };
+    }
+    // Legacy attempt (made before snapshots): rebuild once from the current questions, keep the
+    // stored correctness, and freeze it so it can never drift again.
     const keys = await this.attempts.getQuizKeys(existing.quizId);
     const stored = await this.attempts.getStoredAnswers(existing.id);
     const graded = gradeAttempt(keys, stored.answers, stored.correctness);
+    await this.attempts.saveResultIfMissing(existing.id, graded);
     return {
       created: false,
       result: { attemptId: existing.id, quizId: existing.quizId, ...graded },

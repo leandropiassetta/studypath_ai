@@ -23,9 +23,10 @@ describe('migrations on an empty database', () => {
       'AddDoubts1762300004000',
       'AddTeacher1762300005000',
       'AddSlaFlag1762300006000',
+      'AddAttemptResultSnapshot1762300007000',
     ]);
     const rows = await ds.query('SELECT name FROM migrations');
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
   });
 
   it('are idempotent on a second run', async () => {
