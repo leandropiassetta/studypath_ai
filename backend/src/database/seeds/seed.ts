@@ -4,6 +4,7 @@ import {
   DEMO_QUIZ_ID,
   DEMO_QUIZ_SLUG,
   DEMO_STUDENT_ID,
+  TEACHER_ID,
   TOPIC_EQUACOES_ID,
   TOPIC_GEOMETRIA_ID,
   buildSeedQuestions,
@@ -13,6 +14,8 @@ import {
 export interface SeedOptions {
   /** Optional login for the demo student; omitted = the demo student cannot log in. */
   demoCredentials?: { email: string; passwordHash: string };
+  /** Optional teacher account for the doubt queue; omitted = no teacher exists. */
+  teacher?: { name: string; email: string; passwordHash: string };
 }
 
 /** Idempotent: safe to run repeatedly; never touches attempts. All data is fictional. */
@@ -36,6 +39,20 @@ export async function seed(ds: DataSource, options: SeedOptions = {}): Promise<v
       },
       ['id'],
     );
+    if (options.teacher) {
+      await m.upsert(
+        Student,
+        {
+          id: TEACHER_ID,
+          name: options.teacher.name,
+          email: options.teacher.email,
+          passwordHash: options.teacher.passwordHash,
+          role: 'teacher',
+          createdAt,
+        },
+        ['id'],
+      );
+    }
     await m.upsert(
       Topic,
       [

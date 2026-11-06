@@ -16,15 +16,31 @@ async function demoCredentialsFromEnv(): Promise<SeedOptions['demoCredentials']>
   return { email, passwordHash: await hashPassword(password) };
 }
 
+/** Same rule for the teacher: credentials only from the environment, never from the repository. */
+async function teacherFromEnv(): Promise<SeedOptions['teacher']> {
+  const email = process.env.TEACHER_EMAIL?.trim().toLowerCase();
+  const password = process.env.TEACHER_PASSWORD;
+  if (!email && !password) return undefined;
+  if (!email || !password)
+    throw new Error('Set both TEACHER_EMAIL and TEACHER_PASSWORD, or neither');
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`TEACHER_PASSWORD must have at least ${MIN_PASSWORD_LENGTH} characters`);
+  }
+  return {
+    name: process.env.TEACHER_NAME?.trim() || 'Professor(a)',
+    email,
+    passwordHash: await hashPassword(password),
+  };
+}
+
 const ds = createDataSource(loadEnv().DATABASE_URL);
 await ds.initialize();
 try {
   const demoCredentials = await demoCredentialsFromEnv();
-  await seed(ds, { demoCredentials });
+  const teacher = await teacherFromEnv();
+  await seed(ds, { demoCredentials, teacher });
   console.log(
-    demoCredentials
-      ? 'Seed applied (demo account can log in)'
-      : 'Seed applied (demo account has no login)',
+    `Seed applied (demo account ${demoCredentials ? 'can' : 'cannot'} log in; teacher ${teacher ? 'created' : 'not created'})`,
   );
 } finally {
   await ds.destroy();

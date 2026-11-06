@@ -17,6 +17,9 @@ export class Student {
   @Column({ name: 'password_hash', type: 'text', nullable: true })
   passwordHash!: string | null;
 
+  @Column({ type: 'varchar', length: 10, default: 'student' })
+  role!: 'student' | 'teacher';
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

@@ -29,6 +29,13 @@ export function createRequireAuth(
   };
 }
 
+/** Hook for routes only teachers may use. Students get 403, so the teacher area stays closed to them. */
+export const requireTeacher: onRequestAsyncHookHandler = async (req) => {
+  if (getAuth(req).role !== 'teacher') {
+    throw new AppError(403, 'FORBIDDEN', 'Área exclusiva de professores');
+  }
+};
+
 /** The authenticated session of a request that went through `requireAuth`. */
 export function getAuth(req: FastifyRequest): AuthContext {
   if (!req.auth) throw unauthenticated();

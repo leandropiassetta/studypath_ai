@@ -8,6 +8,7 @@ import type { AuthResult, LoginInput, RegisterInput } from './schemas.js';
 export interface AuthContext {
   studentId: string;
   sessionId: string;
+  role: 'student' | 'teacher';
 }
 
 export interface AuthOptions {
@@ -57,7 +58,7 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password, this.passwordCost);
     try {
       const student = await this.repo.createStudent({ name, email, passwordHash });
-      return this.openSession(student.id, { id: student.id, name, email });
+      return this.openSession(student.id, { id: student.id, name, email, role: 'student' });
     } catch (err) {
       if (err instanceof EmailTakenError) throw emailTaken();
       throw err;
@@ -84,7 +85,12 @@ export class AuthService {
 
     this.loginByAccount.reset(accountKey);
     await this.repo.deleteExpiredSessions(new Date(this.now()));
-    return this.openSession(student.id, { id: student.id, name: student.name, email });
+    return this.openSession(student.id, {
+      id: student.id,
+      name: student.name,
+      email,
+      role: student.role,
+    });
   }
 
   async logout(ctx: AuthContext): Promise<void> {
@@ -94,13 +100,15 @@ export class AuthService {
   async me(ctx: AuthContext): Promise<AuthResult['student']> {
     const student = await this.repo.findById(ctx.studentId);
     if (!student) throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
-    return { id: student.id, name: student.name, email: student.email };
+    return { id: student.id, name: student.name, email: student.email, role: student.role };
   }
 
   /** Resolves a bearer token to its session, or null if unknown or expired. */
   async authenticate(token: string): Promise<AuthContext | null> {
     const session = await this.repo.findValidSession(hashToken(token), new Date(this.now()));
-    return session ? { studentId: session.studentId, sessionId: session.sessionId } : null;
+    return session
+      ? { studentId: session.studentId, sessionId: session.sessionId, role: session.role }
+      : null;
   }
 
   private async openSession(

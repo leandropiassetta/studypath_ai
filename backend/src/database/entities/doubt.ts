@@ -51,6 +51,27 @@ export class Doubt {
   @Column({ type: 'varchar', length: 20, default: 'AI_HINTS' })
   status!: DoubtStatus;
 
+  @Column({ name: 'teacher_requested_at', type: 'timestamptz', nullable: true })
+  teacherRequestedAt!: Date | null;
+
+  @Column({ name: 'teacher_answer', type: 'text', nullable: true })
+  teacherAnswer!: string | null;
+
+  @Column({ name: 'answered_at', type: 'timestamptz', nullable: true })
+  answeredAt!: Date | null;
+
+  @Column({ name: 'answered_by', type: 'uuid', nullable: true })
+  answeredBy!: string | null;
+
+  @Column({ name: 'ai_helpful', type: 'boolean', nullable: true })
+  aiHelpful!: boolean | null;
+
+  @Column({ name: 'teacher_helpful', type: 'boolean', nullable: true })
+  teacherHelpful!: boolean | null;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  misconception!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }

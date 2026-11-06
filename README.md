@@ -93,6 +93,16 @@ No resultado, cada questão errada tem **"Tirar dúvida"**. A aluna pode escreve
 - A mensagem da aluna é tratada como **dado não confiável** (limitada a 300 caracteres e isolada em `<question_data>`), então não consegue mudar o nível nem as regras.
 - As dicas ficam gravadas, para reabrir a dúvida com tudo o que já foi dito.
 
+### Chamar um professor (fila de dúvidas)
+
+Depois das dicas, a aluna pode tocar em **"Chamar um professor"**: a dúvida entra numa fila (meta de resposta: **14 min**) e a tela se atualiza sozinha até a resposta chegar. Ela então marca **"isso ajudou?"** para as dicas da IA e para a resposta do professor.
+
+- **Professor:** contas de professor **não existem no cadastro** (o campo `role` enviado pela API é ignorado). Elas são criadas pelo seed, só com credenciais do ambiente:
+  `TEACHER_EMAIL=professora@exemplo.dev TEACHER_PASSWORD=<6+ caracteres> TEACHER_NAME="Profa. Helena" npm run db:seed`
+- Ao entrar com essa conta, o app abre a **fila de dúvidas** (aguardando / respondidas por mim), com o contexto pronto: a questão, o que o aluno marcou, o que escreveu, **o que a IA já disse** e a solução de referência. O professor vê só o **primeiro nome** do aluno.
+- **Dois professores respondendo ao mesmo tempo:** exatamente um vence (`UPDATE` condicional); o outro recebe 409 e o app avisa.
+- A área do professor (`/api/v1/teacher/*`) devolve **403 para alunos**.
+
 ## Roteiro de demonstração (3 minutos)
 
 1. Suba banco, API e app (comandos acima) e **crie uma conta** na tela de cadastro (cada conta começa sem histórico, então não é preciso limpar nada).

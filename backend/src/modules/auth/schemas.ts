@@ -27,6 +27,7 @@ export const StudentResponse = Type.Object({
   id: Type.String(),
   name: Type.String(),
   email: Type.Union([Type.String(), Type.Null()]),
+  role: Type.Union([Type.Literal('student'), Type.Literal('teacher')]),
 });
 
 export const AuthResponse = Type.Object({

@@ -7,13 +7,22 @@ import { DEFAULT_USAGE_LIMITS, UsageLimiter, type UsageLimits } from '../ai/usag
 import { parseHint } from '../ai/validate.js';
 import { leaksAnswer, referenceHint } from './hints.js';
 import type { DoubtRecord, DoubtRepository } from './repository.js';
-import { MAX_HINTS, type CreateDoubtInput, type DoubtView, type HintResult } from './schemas.js';
+import {
+  ETA_MINUTES,
+  MAX_HINTS,
+  type CreateDoubtInput,
+  type DoubtView,
+  type FeedbackInput,
+  type HintResult,
+  type TeacherDoubtView,
+} from './schemas.js';
 
 const LIMIT_NOTICE =
   'Muitas dicas em pouco tempo. Mostrando a dica padrão; tente a IA de novo em instantes.';
 
 export class DoubtService {
   private readonly limiter: UsageLimiter;
+  private readonly now: () => number;
 
   constructor(
     private readonly doubts: DoubtRepository,
@@ -24,6 +33,7 @@ export class DoubtService {
     now: () => number = Date.now,
   ) {
     this.limiter = new UsageLimiter(limits, now);
+    this.now = now;
   }
 
   /** A doubt exists only for a question this student got wrong in their own attempt. */
@@ -136,6 +146,70 @@ export class DoubtService {
     }
   }
 
+  /** "Chamar professor": the doubt joins the teachers' queue. Idempotent. */
+  async requestTeacher(studentId: string, doubtId: string): Promise<DoubtView> {
+    const doubt = await this.doubts.findOwned(doubtId, studentId);
+    if (!doubt) throw notFound('DOUBT_NOT_FOUND', 'Dúvida não encontrada');
+    if (doubt.status === 'AI_HINTS') await this.doubts.requestTeacher(doubtId, studentId);
+    return this.get(studentId, doubtId);
+  }
+
+  /** "Isso ajudou?" for the AI hints and, once it exists, for the teacher's answer. */
+  async sendFeedback(
+    studentId: string,
+    doubtId: string,
+    feedback: FeedbackInput,
+  ): Promise<DoubtView> {
+    const doubt = await this.doubts.findOwned(doubtId, studentId);
+    if (!doubt) throw notFound('DOUBT_NOT_FOUND', 'Dúvida não encontrada');
+    if (feedback.aiHelpful !== undefined && doubt.hintsUsed === 0) {
+      throw new AppError(409, 'NO_HINTS_YET', 'Peça uma dica antes de avaliar a ajuda da IA');
+    }
+    if (feedback.teacherHelpful !== undefined && doubt.status !== 'ANSWERED') {
+      throw new AppError(409, 'NOT_ANSWERED_YET', 'O professor ainda não respondeu');
+    }
+    await this.doubts.saveFeedback(doubtId, studentId, feedback);
+    return this.get(studentId, doubtId);
+  }
+
+  /** Teacher side: the queue, with the context already prepared. */
+  async teacherQueue(
+    teacherId: string,
+    status: 'waiting' | 'answered',
+  ): Promise<TeacherDoubtView[]> {
+    const rows = await this.doubts.teacherList(status, teacherId);
+    const hints = await this.doubts.hintsFor(rows.map((r) => r.id));
+    const now = this.now();
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      studentFirstName: r.student_name.trim().split(/\s+/)[0] ?? r.student_name, // first name only
+      topic: r.topic,
+      statement: r.statement,
+      options: r.options,
+      selectedOption: r.selected_option,
+      correctOption: r.correct_option,
+      referenceExplanation: r.reference_explanation,
+      message: r.message,
+      misconception: r.misconception,
+      hintsUsed: r.hints_used,
+      aiHints: hints.get(r.id) ?? [],
+      requestedAt: r.teacher_requested_at.toISOString(),
+      waitingMinutes: Math.max(0, Math.floor((now - r.teacher_requested_at.getTime()) / 60_000)),
+      answer: r.teacher_answer,
+      answeredAt: r.answered_at?.toISOString() ?? null,
+    }));
+  }
+
+  async teacherAnswer(teacherId: string, doubtId: string, answer: string): Promise<void> {
+    const text = answer.trim();
+    if (text.length === 0) throw new AppError(400, 'INVALID_REQUEST', 'Resposta vazia');
+    if (!(await this.doubts.answer(doubtId, teacherId, text))) {
+      // Either it does not exist, was never sent to teachers, or someone already answered it.
+      throw new AppError(409, 'NOT_WAITING', 'Esta dúvida não está aguardando resposta');
+    }
+  }
+
   private async view(doubt: DoubtRecord): Promise<DoubtView> {
     return {
       id: doubt.id,
@@ -146,6 +220,12 @@ export class DoubtService {
       hintsUsed: doubt.hintsUsed,
       maxHints: MAX_HINTS,
       hints: await this.doubts.listHints(doubt.id),
+      teacherRequestedAt: doubt.teacherRequestedAt?.toISOString() ?? null,
+      etaMinutes: ETA_MINUTES,
+      teacherAnswer: doubt.teacherAnswer,
+      answeredAt: doubt.answeredAt?.toISOString() ?? null,
+      aiHelpful: doubt.aiHelpful,
+      teacherHelpful: doubt.teacherHelpful,
     };
   }
 }

@@ -12,7 +12,7 @@ import { AuthRepository } from './modules/auth/repository.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { AuthService, DEFAULT_SESSION_TTL_MS } from './modules/auth/service.js';
 import { DoubtRepository } from './modules/doubts/repository.js';
-import { doubtRoutes } from './modules/doubts/routes.js';
+import { doubtRoutes, teacherRoutes } from './modules/doubts/routes.js';
 import { DoubtService } from './modules/doubts/service.js';
 import { ReviewRepository } from './modules/reviews/repository.js';
 import { reviewRoutes } from './modules/reviews/routes.js';
@@ -24,7 +24,7 @@ import { healthRoutes } from './modules/health/routes.js';
 import { QuizRepository } from './modules/quizzes/repository.js';
 import { quizRoutes } from './modules/quizzes/routes.js';
 import { QuizService } from './modules/quizzes/service.js';
-import { createRequireAuth } from './shared/http/auth.js';
+import { createRequireAuth, requireTeacher } from './shared/http/auth.js';
 import { registerLoopbackCors } from './shared/http/cors.js';
 import { registerErrorHandling } from './shared/errors/error-handler.js';
 
@@ -114,16 +114,21 @@ export function buildApp({
           ),
         ),
       );
+      const doubtService = new DoubtService(
+        new DoubtRepository(dataSource),
+        new ExplanationRepository(dataSource),
+        explanationProvider,
+        aiTimeoutMs,
+        aiLimits,
+      );
+      await api.register(doubtRoutes(doubtService));
+      // Teacher area: a second hook on top of the login (students get 403).
       await api.register(
-        doubtRoutes(
-          new DoubtService(
-            new DoubtRepository(dataSource),
-            new ExplanationRepository(dataSource),
-            explanationProvider,
-            aiTimeoutMs,
-            aiLimits,
-          ),
-        ),
+        async (teacher) => {
+          teacher.addHook('onRequest', requireTeacher);
+          await teacher.register(teacherRoutes(doubtService));
+        },
+        { prefix: '/teacher' },
       );
       await api.register(
         reviewRoutes(

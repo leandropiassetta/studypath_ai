@@ -2,6 +2,8 @@ import type { Difficulty, QuestionOption } from '../entities/index.js';
 
 // Stable IDs so the README, Flutter app and tests can refer to them.
 export const DEMO_STUDENT_ID = '55555555-5555-4555-8555-555555555555';
+/** Stable id of the optional seeded teacher account. */
+export const TEACHER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 export const DEMO_QUIZ_ID = '11111111-1111-4111-8111-111111111111';
 export const DEMO_QUIZ_SLUG = 'demo-matematica';
 export const TOPIC_EQUACOES_ID = '33333333-3333-4333-8333-333333333333';

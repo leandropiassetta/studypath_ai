@@ -148,7 +148,12 @@ describe('POST /api/v1/auth/login', () => {
       headers: bearer(res.json().token),
     });
     expect(me.statusCode).toBe(200);
-    expect(me.json()).toEqual({ id: user.studentId, name: 'Login Ok', email: 'login@teste.dev' });
+    expect(me.json()).toEqual({
+      id: user.studentId,
+      name: 'Login Ok',
+      email: 'login@teste.dev',
+      role: 'student',
+    });
   });
 
   it('answers wrong password and unknown e-mail with the same generic 401 (no enumeration)', async () => {

@@ -1,6 +1,8 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 export const MAX_HINTS = 3;
+/** Promised response time shown to the student (a target, not a guarantee). */
+export const ETA_MINUTES = 14;
 
 export const CreateDoubtBody = Type.Object(
   {
@@ -33,6 +35,12 @@ export const DoubtResponse = Type.Object({
   hintsUsed: Type.Integer(),
   maxHints: Type.Integer(),
   hints: Type.Array(HintView),
+  teacherRequestedAt: Type.Union([Type.String(), Type.Null()]),
+  etaMinutes: Type.Integer(),
+  teacherAnswer: Type.Union([Type.String(), Type.Null()]),
+  answeredAt: Type.Union([Type.String(), Type.Null()]),
+  aiHelpful: Type.Union([Type.Boolean(), Type.Null()]),
+  teacherHelpful: Type.Union([Type.Boolean(), Type.Null()]),
 });
 export type DoubtView = Static<typeof DoubtResponse>;
 
@@ -46,3 +54,43 @@ export const HintResponse = Type.Object({
   hasMore: Type.Boolean(),
 });
 export type HintResult = Static<typeof HintResponse>;
+
+export const FeedbackBody = Type.Object(
+  { aiHelpful: Type.Optional(Type.Boolean()), teacherHelpful: Type.Optional(Type.Boolean()) },
+  { additionalProperties: false, minProperties: 1 },
+);
+export type FeedbackInput = Static<typeof FeedbackBody>;
+
+export const TeacherQueueQuery = Type.Object({
+  status: Type.Optional(Type.Union([Type.Literal('waiting'), Type.Literal('answered')])),
+});
+
+export const TeacherAnswerBody = Type.Object(
+  { answer: Type.String({ minLength: 1, maxLength: 2000 }) },
+  { additionalProperties: false },
+);
+export type TeacherAnswerInput = Static<typeof TeacherAnswerBody>;
+
+/** What a teacher sees: the question, the student's choice, the AI's hints and the student's note. */
+export const TeacherDoubtResponse = Type.Object({
+  id: Type.String(),
+  status: Type.Union([Type.Literal('WAITING_TEACHER'), Type.Literal('ANSWERED')]),
+  studentFirstName: Type.String(),
+  topic: Type.String(),
+  statement: Type.String(),
+  options: Type.Array(Type.Object({ key: Type.String(), text: Type.String() })),
+  selectedOption: Type.String(),
+  correctOption: Type.String(),
+  referenceExplanation: Type.String(),
+  message: Type.Union([Type.String(), Type.Null()]),
+  misconception: Type.Union([Type.String(), Type.Null()]),
+  hintsUsed: Type.Integer(),
+  aiHints: Type.Array(HintView),
+  requestedAt: Type.String(),
+  waitingMinutes: Type.Integer(),
+  answer: Type.Union([Type.String(), Type.Null()]),
+  answeredAt: Type.Union([Type.String(), Type.Null()]),
+});
+export type TeacherDoubtView = Static<typeof TeacherDoubtResponse>;
+
+export const TeacherQueueResponse = Type.Array(TeacherDoubtResponse);
