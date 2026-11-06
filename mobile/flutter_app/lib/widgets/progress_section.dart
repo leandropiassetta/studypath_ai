@@ -17,9 +17,12 @@ String formatDelta(double delta) {
 /// Trajectory per attempt (overall and by topic). Honest by design: attempts reuse the same
 /// questions, so this shows performance over time, not proof of learning.
 class ProgressSection extends StatelessWidget {
-  const ProgressSection({super.key, required this.progress});
+  const ProgressSection({super.key, required this.progress, this.subject});
 
   final List<ProgressPoint> progress;
+
+  /// Which subject the evolution is about (it is always a single simulado).
+  final String? subject;
 
   @override
   Widget build(BuildContext context) {
@@ -39,12 +42,14 @@ class ProgressSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Sua evolução nos simulados completos',
+              subject == null
+                  ? 'Sua evolução nos simulados completos'
+                  : 'Sua evolução em $subject',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             _Row(
-              label: 'Nota geral',
+              label: 'Nota do simulado',
               values: [for (final p in progress) p.scorePct],
             ),
             for (final name in topicNames)

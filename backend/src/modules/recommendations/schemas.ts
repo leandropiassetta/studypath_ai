@@ -1,5 +1,10 @@
 import { Type, type Static } from '@sinclair/typebox';
 
+/** Optional: only the subject (simulado) the student is looking at. */
+export const RecommendationsQuery = Type.Object({
+  quiz: Type.Optional(Type.String({ pattern: '^[a-z0-9]+(-[a-z0-9]+)*$', maxLength: 120 })),
+});
+
 export const StudentParams = Type.Object({ studentId: Type.String({ format: 'uuid' }) });
 
 const SuggestedQuestion = Type.Object({
@@ -18,6 +23,10 @@ export const RecommendationsResponse = Type.Object({
     Type.Literal('NEEDS_REVIEW'),
   ]),
   evaluatedAttempts: Type.Integer(),
+  // Name of the subject asked for with ?quiz=, or null when the view covers every subject.
+  subject: Type.Union([Type.String(), Type.Null()]),
+  // Subject the progress belongs to (the simulado of the newest full attempt, or the asked one).
+  progressSubject: Type.Union([Type.String(), Type.Null()]),
   // Oldest to newest, same window as the evaluation: lets the client show the trajectory.
   progress: Type.Array(
     Type.Object({
@@ -39,6 +48,7 @@ export const RecommendationsResponse = Type.Object({
     Type.Object({
       topicId: Type.String(),
       topicName: Type.String(),
+      subject: Type.Union([Type.String(), Type.Null()]),
       priority: Type.Union([Type.Literal('HIGH'), Type.Literal('LOW')]),
       correctCount: Type.Integer(),
       answeredCount: Type.Integer(),

@@ -1,3 +1,4 @@
+import { notFound } from '../../shared/errors/app-error.js';
 import { assertSameStudent } from '../../shared/errors/guards.js';
 import {
   RECENT_ATTEMPTS_WINDOW,
@@ -17,30 +18,54 @@ const NO_NEW_QUESTIONS_MESSAGE =
 export class RecommendationService {
   constructor(private readonly repo: RecommendationRepository) {}
 
-  async getFor(authStudentId: string, studentId: string): Promise<RecommendationsView> {
+  async getFor(
+    authStudentId: string,
+    studentId: string,
+    quizSlug?: string,
+  ): Promise<RecommendationsView> {
     assertSameStudent(studentId, authStudentId);
 
+    const quizzes = await this.repo.standardQuizzes();
+    const scope = quizSlug ? quizzes.find((q) => q.slug === quizSlug) : undefined;
+    if (quizSlug && !scope) throw notFound('QUIZ_NOT_FOUND', 'Simulado não encontrado');
+    const subjectByTopic = new Map(quizzes.flatMap((q) => q.topicIds.map((t) => [t, q.subject])));
+    const scopeTopics = scope ? new Set(scope.topicIds) : null;
+
     const history = await this.repo.history(studentId);
+    // With a subject, everything below only looks at that subject's topics and simulado.
+    const answers = scopeTopics
+      ? history.answers.filter((a) => scopeTopics.has(a.topicId))
+      : history.answers;
+    const attempts = scopeTopics
+      ? history.attempts.filter((at) => answers.some((a) => a.attemptId === at.id))
+      : history.attempts;
+
     // Priority uses the CURRENT state (latest answer per question, any quiz). Progress shows the
-    // trajectory of the last full quizzes only: review quizzes have a different size and scope.
+    // trajectory of the last full quizzes of ONE simulado: review quizzes have a different size
+    // and scope, and scores of different simulados are not comparable.
     const current = latestAnswerPerQuestion(
-      history.answers,
-      history.attempts.map((a) => a.id),
+      answers,
+      attempts.map((a) => a.id),
     );
     const review = selectReviewTopics(current);
     const candidates = await this.repo.unansweredQuestions(
       studentId,
       review.map((t) => t.topicId),
     );
+    const progress = scope
+      ? attempts
+          .filter((a) => a.kind === 'standard' && a.quizId === scope.id)
+          .slice(0, RECENT_ATTEMPTS_WINDOW)
+      : progressAttempts(attempts, RECENT_ATTEMPTS_WINDOW);
+    const progressQuiz = scope ?? quizzes.find((q) => q.id === progress[0]?.quizId);
 
     return {
       studentId,
-      status: overallStatus(history.attempts.length, review.length),
-      evaluatedAttempts: history.attempts.length,
-      progress: buildProgress(
-        history.answers,
-        progressAttempts(history.attempts, RECENT_ATTEMPTS_WINDOW),
-      ).map((p) => ({
+      status: overallStatus(attempts.length, review.length),
+      evaluatedAttempts: attempts.length,
+      subject: scope?.subject ?? null,
+      progressSubject: progressQuiz?.subject ?? null,
+      progress: buildProgress(answers, progress).map((p) => ({
         ...p,
         submittedAt: p.submittedAt.toISOString(),
       })),
@@ -49,6 +74,7 @@ export class RecommendationService {
         const available = suggested.length > 0;
         return {
           ...t,
+          subject: subjectByTopic.get(t.topicId) ?? null,
           priority: t.priority,
           status: available ? ('AVAILABLE' as const) : ('NO_NEW_QUESTIONS' as const),
           ...(available ? {} : { message: NO_NEW_QUESTIONS_MESSAGE }),

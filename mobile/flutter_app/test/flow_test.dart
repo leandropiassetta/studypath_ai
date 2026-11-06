@@ -121,6 +121,7 @@ void main() {
 
       final postedRequestIds = <String>[];
       var posts = 0;
+      final recommendationQueries = <String>[];
       final mock = MockClient((req) async {
         if (req.method == 'GET' &&
             req.url.path.endsWith('/quizzes/demo-matematica')) {
@@ -134,7 +135,10 @@ void main() {
           if (posts == 1) throw http.ClientException('offline');
           return _json(_result, 201);
         }
-        if (req.url.path.endsWith('/recommendations')) return _json(_recs);
+        if (req.url.path.endsWith('/recommendations')) {
+          recommendationQueries.add(req.url.query);
+          return _json(_recs);
+        }
         return _json({
           'error': {'code': 'NOT_FOUND', 'message': 'x', 'details': []},
         }, 404);
@@ -188,6 +192,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Equações • prioridade alta'), findsOneWidget);
       expect(find.textContaining('Quanto é x se x - 7 = 1?'), findsOneWidget);
+      // After a simulado, the recommendations are about that subject only.
+      expect(recommendationQueries, ['quiz=demo-matematica']);
     },
   );
 

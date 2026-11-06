@@ -115,7 +115,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, [point(100, 100, 100), point(50, 25, 75)]);
-      expect(find.byKey(const Key('delta-Nota geral')), findsOneWidget);
+      expect(find.byKey(const Key('delta-Nota do simulado')), findsOneWidget);
       expect(find.text('▼ −50 pts'), findsOneWidget);
       expect(find.text('▼ −75 pts'), findsOneWidget);
     });

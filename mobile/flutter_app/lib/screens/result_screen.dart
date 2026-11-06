@@ -152,7 +152,8 @@ class ResultScreen extends StatelessWidget {
                 key: const Key('recommendations-button'),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => RecommendationsScreen(api: api),
+                    builder: (_) =>
+                        RecommendationsScreen(api: api, quizSlug: quiz.slug),
                   ),
                 ),
                 child: const Text('Ver recomendações de estudo'),

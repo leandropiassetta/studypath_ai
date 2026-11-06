@@ -12,9 +12,13 @@ import 'quiz_screen.dart';
 import 'result_screen.dart' show formatPct;
 
 class RecommendationsScreen extends StatefulWidget {
-  const RecommendationsScreen({super.key, required this.api});
+  const RecommendationsScreen({super.key, required this.api, this.quizSlug});
 
   final ApiClient api;
+
+  /// Limits the screen to the subject of this simulado (after finishing it). Without it, every
+  /// subject is shown, grouped by subject.
+  final String? quizSlug;
 
   @override
   State<RecommendationsScreen> createState() => _RecommendationsScreenState();
@@ -63,7 +67,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       _error = null;
     });
     try {
-      final data = await widget.api.fetchRecommendations();
+      final data = await widget.api.fetchRecommendations(
+        quizSlug: widget.quizSlug,
+      );
       if (!mounted) return;
       setState(() {
         _data = data;
@@ -81,7 +87,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Recomendações'),
+      title: Text(
+        _data?.subject == null
+            ? 'Recomendações'
+            : 'Recomendações · ${_data!.subject}',
+      ),
       actions: const [ThemeModeButton()],
     ),
     body: CenteredContent(
@@ -93,25 +103,44 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     ),
   );
 
+  /// Grouped by subject (alphabetical) when every subject is shown; inside a subject the
+  /// server's order stays: high priority first. Dart's sort is stable.
+  List<TopicRecommendation> _ordered(Recommendations data) {
+    if (data.subject != null) return data.topics;
+    return [...data.topics]
+      ..sort((a, b) => (a.subject ?? '').compareTo(b.subject ?? ''));
+  }
+
   Widget _buildContent(Recommendations data) {
     switch (data.status) {
       case 'NO_HISTORY':
-        return const Center(
-          child: Text('Faça um simulado para receber recomendações.'),
+        return Center(
+          child: Text(
+            data.subject == null
+                ? 'Faça um simulado para receber recomendações.'
+                : 'Faça o simulado de ${data.subject} para receber recomendações.',
+            textAlign: TextAlign.center,
+          ),
         );
       case 'ON_TRACK':
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
-            const Padding(
-              padding: EdgeInsets.all(12),
+            Padding(
+              padding: const EdgeInsets.all(12),
               child: Text(
-                'Excelente! Todas as questões avaliadas estão com a última '
-                'resposta certa.',
+                data.subject == null
+                    ? 'Excelente! Todas as questões avaliadas estão com a última '
+                          'resposta certa.'
+                    : 'Excelente! Tudo certo em ${data.subject}: todas as questões '
+                          'avaliadas estão com a última resposta certa.',
                 textAlign: TextAlign.center,
               ),
             ),
-            ProgressSection(progress: data.progress),
+            ProgressSection(
+              progress: data.progress,
+              subject: data.progressSubject,
+            ),
           ],
         );
       default:
@@ -119,10 +148,14 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           padding: const EdgeInsets.all(12),
           children: [
             Text(
-              'Considerando ${plural(data.evaluatedAttempts, 'tentativa', 'tentativas')}. '
+              'Considerando ${plural(data.evaluatedAttempts, 'tentativa', 'tentativas')}'
+              '${data.subject == null ? '' : ' de ${data.subject}'}. '
               'A prioridade considera a última resposta de cada questão.',
             ),
-            ProgressSection(progress: data.progress),
+            ProgressSection(
+              progress: data.progress,
+              subject: data.progressSubject,
+            ),
             if (data.topics.every((t) => t.priority == 'LOW'))
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -131,7 +164,18 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                   'Que tal revisar?',
                 ),
               ),
-            for (final t in data.topics) ...[
+            for (final (i, t) in _ordered(data).indexed) ...[
+              // Every subject at once: one heading per subject, so it is clear what is what.
+              if (data.subject == null &&
+                  (i == 0 || _ordered(data)[i - 1].subject != t.subject))
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Text(
+                    t.subject ?? 'Outros',
+                    key: Key('subject-${t.subject ?? 'outros'}'),
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
               const SizedBox(height: 12),
               Text(
                 '${t.topicName} • ${t.priority == 'HIGH' ? 'prioridade alta' : 'revisão opcional'}',

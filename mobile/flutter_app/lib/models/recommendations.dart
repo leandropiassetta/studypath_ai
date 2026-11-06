@@ -11,6 +11,7 @@ class TopicRecommendation {
     required this.status,
     required this.suggestedQuestions,
     this.message,
+    this.subject,
   });
 
   factory TopicRecommendation.fromJson(Map<String, dynamic> json) =>
@@ -23,6 +24,7 @@ class TopicRecommendation {
         accuracyPct: (json['accuracyPct'] as num).toDouble(),
         status: json['status'] as String,
         message: json['message'] as String?,
+        subject: json['subject'] as String?,
         suggestedQuestions: (json['suggestedQuestions'] as List<dynamic>)
             .map((q) => Question.fromJson(q as Map<String, dynamic>))
             .toList(),
@@ -30,6 +32,9 @@ class TopicRecommendation {
 
   final String topicId;
   final String topicName;
+
+  /// The subject (matéria) this topic belongs to, e.g. "Geografia".
+  final String? subject;
 
   /// `HIGH` (accuracy < 60%) or `LOW` (optional review: some mistakes, >= 60%).
   final String priority;
@@ -76,6 +81,8 @@ class Recommendations {
     required this.evaluatedAttempts,
     required this.topics,
     this.progress = const [],
+    this.subject,
+    this.progressSubject,
   });
 
   factory Recommendations.fromJson(Map<String, dynamic> json) =>
@@ -88,6 +95,8 @@ class Recommendations {
         progress: ((json['progress'] as List<dynamic>?) ?? const [])
             .map((p) => ProgressPoint.fromJson(p as Map<String, dynamic>))
             .toList(),
+        subject: json['subject'] as String?,
+        progressSubject: json['progressSubject'] as String?,
       );
 
   /// `NO_HISTORY`, `ON_TRACK` or `NEEDS_REVIEW`.
@@ -97,4 +106,10 @@ class Recommendations {
 
   /// Attempts in the evaluated window, oldest first.
   final List<ProgressPoint> progress;
+
+  /// The subject this view was limited to, or null when it covers every subject.
+  final String? subject;
+
+  /// The subject the progress belongs to (progress is always about one simulado).
+  final String? progressSubject;
 }

@@ -273,10 +273,14 @@ class ApiClient {
     return _parse(json, Explanation.fromJson);
   }
 
-  Future<Recommendations> fetchRecommendations() async {
+  /// With [quizSlug] only that subject's topics and evolution; without it, every subject.
+  Future<Recommendations> fetchRecommendations({String? quizSlug}) async {
     final json = await _send(
       () => _client.get(
-        _uri('/students/$studentId/recommendations'),
+        _uri(
+          '/students/$studentId/recommendations'
+          '${quizSlug == null ? '' : '?quiz=${Uri.encodeQueryComponent(quizSlug)}'}',
+        ),
         headers: _headers(),
       ),
     );

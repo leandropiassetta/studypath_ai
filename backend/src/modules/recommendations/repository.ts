@@ -13,8 +13,38 @@ export interface UnansweredQuestion {
   createdAt: Date;
 }
 
+export interface StandardQuiz {
+  id: string;
+  slug: string;
+  /** "Simulado de Geografia" -> "Geografia". */
+  subject: string;
+  topicIds: string[];
+}
+
+const subjectOf = (title: string): string => title.replace(/^Simulado de\s+/i, '');
+
 export class RecommendationRepository {
   constructor(private readonly ds: DataSource) {}
+
+  /** The simulados of each subject with the topics they cover (review quizzes are not subjects). */
+  async standardQuizzes(): Promise<StandardQuiz[]> {
+    const rows = await this.ds.query<
+      { id: string; slug: string; title: string; topic_ids: string[] }[]
+    >(
+      `SELECT qz.id, qz.slug, qz.title, array_agg(DISTINCT q.topic_id::text) AS topic_ids
+       FROM quizzes qz
+       JOIN quiz_questions qq ON qq.quiz_id = qz.id
+       JOIN questions q ON q.id = qq.question_id
+       WHERE qz.is_active AND qz.kind = 'standard'
+       GROUP BY qz.id`,
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      subject: subjectOf(r.title),
+      topicIds: r.topic_ids,
+    }));
+  }
 
   /**
    * RN-06: the student's attempts (newest first, capped) and all their answers. The cap only

@@ -35,8 +35,8 @@ const submit = async (picks: string[]): Promise<void> => {
   });
   expect(res.statusCode).toBe(201);
 };
-const recs = (studentId = user.studentId) =>
-  client.inject({ method: 'GET', url: `/api/v1/students/${studentId}/recommendations` });
+const recs = (studentId = user.studentId, query = '') =>
+  client.inject({ method: 'GET', url: `/api/v1/students/${studentId}/recommendations${query}` });
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
@@ -61,6 +61,8 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       studentId: user.studentId,
       status: 'NO_HISTORY',
       evaluatedAttempts: 0,
+      subject: null,
+      progressSubject: null,
       progress: [],
       topics: [],
     });
@@ -242,5 +244,88 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     expect((await recs()).json().status).toBe('NO_HISTORY');
     await submit(EQ_1_OF_4);
     expect((await recs()).json().status).toBe('NEEDS_REVIEW');
+  });
+});
+
+describe('recommendations by subject (?quiz=)', () => {
+  /** Answers every question of a simulado with the first option (wrong for the seed questions). */
+  const submitQuiz = async (slug: string, pick = 'A'): Promise<void> => {
+    const quiz = (await client.inject({ method: 'GET', url: `/api/v1/quizzes/${slug}` })).json();
+    const res = await client.inject({
+      method: 'POST',
+      url: '/api/v1/attempts',
+      payload: {
+        requestId: randomUUID(),
+        studentId: user.studentId,
+        quizId: quiz.id,
+        answers: quiz.questions.map((q: { id: string }) => ({
+          questionId: q.id,
+          selectedOption: pick,
+        })),
+      },
+    });
+    expect(res.statusCode).toBe(201);
+  };
+  const names = (body: { topics: { topicName: string }[] }) =>
+    body.topics.map((t) => t.topicName).sort();
+
+  it("without a subject it covers every subject, naming each topic's subject", async () => {
+    await submitQuiz('demo-geografia');
+    await submit(EQ_1_OF_4);
+    const body = (await recs()).json();
+    expect(body.subject).toBeNull();
+    const subjects = new Set(body.topics.map((t: { subject: string }) => t.subject));
+    expect(subjects).toEqual(new Set(['Geografia', 'Matemática']));
+  });
+
+  it('with a subject it only shows that subject: topics, attempts and evolution', async () => {
+    await submitQuiz('demo-geografia');
+    await submit(EQ_1_OF_4);
+    const geo = (await recs(user.studentId, '?quiz=demo-geografia')).json();
+    expect(geo).toMatchObject({
+      subject: 'Geografia',
+      progressSubject: 'Geografia',
+      evaluatedAttempts: 1,
+    });
+    expect(names(geo)).toEqual(['Geografia Mundial', 'Geografia do Brasil']);
+    expect(geo.progress).toHaveLength(1);
+    expect(geo.progress[0].topics.map((t: { topicName: string }) => t.topicName).sort()).toEqual([
+      'Geografia Mundial',
+      'Geografia do Brasil',
+    ]);
+
+    const math = (await recs(user.studentId, '?quiz=demo-matematica')).json();
+    expect(math).toMatchObject({ subject: 'Matemática', evaluatedAttempts: 1 });
+    expect(names(math)).toEqual(['Equações', 'Geometria']);
+  });
+
+  it("a subject the student never tried is NO_HISTORY, not someone else's data", async () => {
+    await submit(EQ_1_OF_4);
+    const res = (await recs(user.studentId, '?quiz=demo-historia')).json();
+    expect(res).toMatchObject({
+      status: 'NO_HISTORY',
+      evaluatedAttempts: 0,
+      topics: [],
+      progress: [],
+    });
+  });
+
+  it('the evolution follows the simulado: two History attempts, one Math attempt', async () => {
+    await submit(EQ_1_OF_4);
+    await submitQuiz('demo-historia');
+    await submitQuiz('demo-historia', 'B');
+    const hist = (await recs(user.studentId, '?quiz=demo-historia')).json();
+    expect(hist.progress).toHaveLength(2);
+    const unscoped = (await recs()).json(); // newest full quiz is History
+    expect(unscoped.progressSubject).toBe('História');
+    expect(unscoped.progress).toHaveLength(2);
+  });
+
+  it('rejects an unknown subject and a malformed one, and never leaks another student', async () => {
+    expect((await recs(user.studentId, '?quiz=nao-existe')).statusCode).toBe(404);
+    expect((await recs(user.studentId, '?quiz=Bad_Slug!')).statusCode).toBe(400);
+    expect(
+      (await recs('00000000-0000-4000-8000-000000000000', '?quiz=demo-geografia')).statusCode,
+    ).toBe(403);
   });
 });
