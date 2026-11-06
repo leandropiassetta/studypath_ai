@@ -2,6 +2,7 @@ import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import type { ExplanationProvider } from '../ai/providers/types.js';
 import type { ExplanationRepository } from '../ai/repository.js';
 import { withTimeout } from '../ai/timeout.js';
+import type { UsageLimiter } from '../ai/usage.js';
 import { parseAnalysis } from '../ai/validate.js';
 import type { DoubtRepository } from './repository.js';
 
@@ -21,6 +22,8 @@ export interface JobDeps {
   provider: ExplanationProvider | null;
   timeoutMs: number;
   log: JobLogger;
+  /** Same cost guard as the hints: an over-limit student gets the plain summary, not a model call. */
+  limiter?: UsageLimiter;
 }
 
 /**
@@ -41,7 +44,7 @@ export async function processEnrich(
   const fallback = `Marcou ${c.selectedOption} em vez de ${c.correctOption}.`;
 
   const provider = deps.provider;
-  if (!provider?.analyze) {
+  if (!provider?.analyze || (deps.limiter && deps.limiter.tryAcquire(doubt.studentId) !== 'ok')) {
     await deps.doubts.saveMisconception(doubtId, fallback);
     return;
   }

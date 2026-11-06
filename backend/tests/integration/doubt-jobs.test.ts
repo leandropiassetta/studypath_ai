@@ -269,3 +269,45 @@ describe('DoubtService with jobs', () => {
     expect(calls).toEqual([id]);
   });
 });
+
+describe('cost guard in the enrich job', () => {
+  it('uses the plain summary, without calling the model, once the student is over the limit', async () => {
+    const { UsageLimiter } = await import('../../src/modules/ai/usage.js');
+    let calls = 0;
+    const provider: ExplanationProvider = {
+      explain: async () => ({}),
+      analyze: async () => {
+        calls += 1;
+        return { misconception: 'da IA' };
+      },
+    };
+    const limited = { ...deps(provider), limiter: new UsageLimiter({ perMinute: 1, perDay: 10 }) };
+    const first = await newDoubt();
+    await processEnrich(limited, first, false);
+    expect(await misconceptionOf(first)).toBe('da IA');
+
+    // Same student, second doubt in the same minute: the limit is per student.
+    const [{ student_id: studentId }] = await ds.query(
+      'SELECT student_id FROM doubts WHERE id = $1',
+      [first],
+    );
+    const [attempt] = await ds.query(
+      `INSERT INTO attempts (student_id, quiz_id, request_id, payload_hash, total_count, correct_count, score_pct)
+       VALUES ($1, $2, $3, $4, 1, 0, 0) RETURNING id`,
+      [studentId, DEMO_QUIZ_ID, randomUUID(), randomUUID()],
+    );
+    await ds.query(
+      `INSERT INTO attempt_answers (attempt_id, question_id, selected_option, is_correct) VALUES ($1, $2, 'A', false)`,
+      [attempt.id, Q2],
+    );
+    const { doubt } = await doubts.openOrGet({
+      studentId,
+      attemptId: attempt.id,
+      questionId: Q2,
+      message: null,
+    });
+    await processEnrich(limited, doubt.id, false);
+    expect(await misconceptionOf(doubt.id)).toBe('Marcou A em vez de B.');
+    expect(calls).toBe(1);
+  });
+});

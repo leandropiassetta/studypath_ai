@@ -13,7 +13,7 @@ if [ -n "$leaked_files" ]; then
 fi
 
 # 2) Credential-looking content in staged files (values are never printed).
-pattern='sk-ant-[A-Za-z0-9_-]{20,}|sk-(proj-|svcacct-|admin-)?[A-Za-z0-9_-]{32,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|(LLM_API_KEY|API_KEY|SECRET|PASSWORD)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_/+=-]{24,}'
+pattern='gsk_[A-Za-z0-9]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-(proj-|svcacct-|admin-)?[A-Za-z0-9_-]{32,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|(LLM_API_KEY|API_KEY|SECRET|PASSWORD)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_/+=-]{24,}'
 hits="$(git grep --cached -lEI "$pattern" -- . ':!package-lock.json' ':!pubspec.lock' || true)"
 if [ -n "$hits" ]; then
   echo "BLOCKED: possible credential in:"; echo "$hits"

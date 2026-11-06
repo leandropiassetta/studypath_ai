@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { loadEnv } from './config/env.js';
 import { createExplanationProvider } from './modules/ai/providers/index.js';
+import { UsageLimiter } from './modules/ai/usage.js';
 import { createDoubtQueue } from './modules/doubts/jobs.js';
 import { DoubtRepository } from './modules/doubts/repository.js';
 import { ExplanationRepository } from './modules/ai/repository.js';
@@ -24,6 +25,10 @@ const queue = env.REDIS_URL
         provider: explanationProvider,
         timeoutMs: env.AI_TIMEOUT_MS,
         log: logger,
+        limiter: new UsageLimiter({
+          perMinute: env.AI_MAX_CALLS_PER_MINUTE,
+          perDay: env.AI_MAX_CALLS_PER_DAY,
+        }),
       },
     })
   : null;
