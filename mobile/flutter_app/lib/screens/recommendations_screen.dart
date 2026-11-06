@@ -88,7 +88,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(
-        _data?.subject == null
+        widget.quizSlug == null
+            ? 'Recomendação de estudo geral'
+            : _data?.subject == null
             ? 'Recomendações'
             : 'Recomendações · ${_data!.subject}',
       ),
@@ -110,6 +112,15 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     return [...data.topics]
       ..sort((a, b) => (a.subject ?? '').compareTo(b.subject ?? ''));
   }
+
+  /// One card per subject tried: each evolution compares a simulado only with itself.
+  List<Widget> _evolutionCards(Recommendations data) => [
+    for (final e in data.evolutionsToShow)
+      ProgressSection(
+        progress: e.progress,
+        subject: e.subject.isEmpty ? null : e.subject,
+      ),
+  ];
 
   Widget _buildContent(Recommendations data) {
     switch (data.status) {
@@ -137,10 +148,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-            ProgressSection(
-              progress: data.progress,
-              subject: data.progressSubject,
-            ),
+            ..._evolutionCards(data),
           ],
         );
       default:
@@ -152,10 +160,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               '${data.subject == null ? '' : ' de ${data.subject}'}. '
               'A prioridade considera a última resposta de cada questão.',
             ),
-            ProgressSection(
-              progress: data.progress,
-              subject: data.progressSubject,
-            ),
+            ..._evolutionCards(data),
             if (data.topics.every((t) => t.priority == 'LOW'))
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -164,20 +169,11 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                   'Que tal revisar?',
                 ),
               ),
-            for (final (i, t) in _ordered(data).indexed) ...[
-              // Every subject at once: one heading per subject, so it is clear what is what.
-              if (data.subject == null &&
-                  (i == 0 || _ordered(data)[i - 1].subject != t.subject))
-                Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Text(
-                    t.subject ?? 'Outros',
-                    key: Key('subject-${t.subject ?? 'outros'}'),
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
+            for (final t in _ordered(data)) ...[
               const SizedBox(height: 12),
               Text(
+                // Every subject at once: say which subject each topic belongs to.
+                '${data.subject == null && t.subject != null ? '${t.subject} · ' : ''}'
                 '${t.topicName} • ${t.priority == 'HIGH' ? 'prioridade alta' : 'revisão opcional'}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),

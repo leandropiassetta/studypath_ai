@@ -34,7 +34,9 @@ class ProgressSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      key: const Key('progress-section'),
+      key: Key(
+        subject == null ? 'progress-section' : 'progress-section-$subject',
+      ),
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(12),

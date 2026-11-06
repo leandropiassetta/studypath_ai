@@ -64,6 +64,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
       subject: null,
       progressSubject: null,
       progress: [],
+      evolutions: [],
       topics: [],
     });
   });
@@ -327,5 +328,34 @@ describe('recommendations by subject (?quiz=)', () => {
     expect(
       (await recs('00000000-0000-4000-8000-000000000000', '?quiz=demo-geografia')).statusCode,
     ).toBe(403);
+  });
+
+  it('the general view has one evolution per subject tried, each only with its own attempts', async () => {
+    await submit(EQ_1_OF_4); // Matemática, 1 attempt
+    await submitQuiz('demo-historia');
+    await submitQuiz('demo-historia', 'B'); // História, 2 attempts
+    const body = (await recs()).json();
+    expect(body.evolutions.map((e: { subject: string }) => e.subject)).toEqual([
+      'História',
+      'Matemática',
+    ]);
+    const by = Object.fromEntries(
+      body.evolutions.map((e: { subject: string; progress: unknown[] }) => [
+        e.subject,
+        e.progress.length,
+      ]),
+    );
+    expect(by).toEqual({ História: 2, Matemática: 1 });
+    // A subject never tried does not appear.
+    expect(body.evolutions.some((e: { subject: string }) => e.subject === 'Inglês')).toBe(false);
+  });
+
+  it('asking for one subject returns just that evolution', async () => {
+    await submit(EQ_1_OF_4);
+    await submitQuiz('demo-historia');
+    const body = (await recs(user.studentId, '?quiz=demo-historia')).json();
+    expect(body.evolutions.map((e: { subject: string }) => e.subject)).toEqual(['História']);
+    const none = (await recs(user.studentId, '?quiz=demo-ingles')).json();
+    expect(none.evolutions).toEqual([]);
   });
 });

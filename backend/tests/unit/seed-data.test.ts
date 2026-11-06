@@ -25,6 +25,7 @@ describe('seed data', () => {
       'demo-historia',
       'demo-ingles',
       'demo-ciencias',
+      'demo-portugues',
     ]);
     expect(new Set(SEED_QUIZZES.map((q) => q.id)).size).toBe(slugs.length);
 
@@ -63,8 +64,10 @@ describe('seed data', () => {
       'Gramática',
       'Biologia',
       'Física e Química',
+      'Ortografia',
+      'Classes de Palavras',
     ]);
-    expect(questions).toHaveLength(88);
+    expect(questions).toHaveLength(104);
   });
 
   it('explanations of the non-math subjects follow "cue: fact" (the cue is the level 2 hint)', () => {

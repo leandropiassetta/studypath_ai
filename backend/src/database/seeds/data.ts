@@ -17,6 +17,8 @@ export const TOPIC_GEO_MUNDO_ID = '33333333-3333-4333-8333-333333333339';
 export const TOPIC_HIST_GERAL_ID = '33333333-3333-4333-8333-33333333333a';
 export const TOPIC_ING_GRAM_ID = '33333333-3333-4333-8333-33333333333b';
 export const TOPIC_CIE_FISQUI_ID = '33333333-3333-4333-8333-33333333333c';
+export const TOPIC_POR_ORTO_ID = '33333333-3333-4333-8333-33333333333d';
+export const TOPIC_POR_CLASSES_ID = '33333333-3333-4333-8333-33333333333e';
 
 export const SEED_TOPICS = [
   { id: TOPIC_EQUACOES_ID, name: 'Equações' },
@@ -29,6 +31,8 @@ export const SEED_TOPICS = [
   { id: TOPIC_ING_GRAM_ID, name: 'Gramática' },
   { id: TOPIC_CIE_BIO_ID, name: 'Biologia' },
   { id: TOPIC_CIE_FISQUI_ID, name: 'Física e Química' },
+  { id: TOPIC_POR_ORTO_ID, name: 'Ortografia' },
+  { id: TOPIC_POR_CLASSES_ID, name: 'Classes de Palavras' },
 ];
 
 /** One simulado per subject. Math is the original demo quiz and keeps its stable id and slug. */
@@ -49,6 +53,11 @@ export const SEED_QUIZZES = [
     id: '11111111-1111-4111-8111-111111111115',
     slug: 'demo-ciencias',
     title: 'Simulado de Ciências',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111111116',
+    slug: 'demo-portugues',
+    title: 'Simulado de Português',
   },
 ];
 
@@ -892,6 +901,153 @@ const CIENCIAS = subject(
 // Ids follow this order, so the first 8 entries of every subject come first (they keep their ids).
 const SUBJECTS = [GEOGRAFIA, HISTORIA, INGLES, CIENCIAS];
 DRAFTS.push(...SUBJECTS.flatMap((s) => s.slice(0, 8)), ...SUBJECTS.flatMap((s) => s.slice(8)));
+
+// Português: new subject, so all of its questions come after the others (ids stay stable).
+const PORTUGUES = subject(
+  'demo-portugues',
+  [TOPIC_POR_ORTO_ID, TOPIC_POR_CLASSES_ID],
+  [
+    [
+      'Qual palavra está escrita corretamente?',
+      ['excessão', 'exceção', 'exeção', 'esceção'],
+      1,
+      'Lembre-se da regra dos substantivos derivados de "exceto": a grafia correta é exceção.',
+      0,
+      true,
+    ],
+    [
+      'Qual é a grafia correta?',
+      ['previlégio', 'privilégo', 'privilégio', 'preveilégio'],
+      2,
+      'Observe a origem da palavra, que vem do latim e tem o prefixo "privi-": a grafia correta é privilégio.',
+      0,
+      true,
+    ],
+    [
+      'Qual palavra está acentuada corretamente?',
+      ['heroi', 'herói', 'héroi', 'heróí'],
+      1,
+      'Lembre-se da regra dos ditongos abertos "ói" em palavras oxítonas: a forma correta é herói.',
+      0,
+      true,
+    ],
+    [
+      'Qual frase está escrita corretamente?',
+      [
+        'Fui à escola ontem.',
+        'Fui a escola ontem.',
+        'Fui há escola ontem.',
+        'Fui ah escola ontem.',
+      ],
+      0,
+      'Observe que o verbo "ir" pede a preposição "a" e que "escola" pede o artigo "a": a crase é obrigatória em "Fui à escola ontem."',
+      0,
+      true,
+    ],
+    [
+      'Qual palavra está escrita corretamente?',
+      ['analizar', 'analisar', 'anallisar', 'analizár'],
+      1,
+      'Lembre-se de que o verbo vem do substantivo "análise", escrito com "s": a grafia correta é analisar.',
+      0,
+      false,
+    ],
+    [
+      'Qual é a grafia correta?',
+      ['obcessão', 'obseção', 'obsessão', 'obsseção'],
+      2,
+      'Lembre-se de que o sufixo -ssão forma substantivos de ação ou estado: a grafia correta é obsessão.',
+      0,
+      false,
+    ],
+    [
+      'Qual palavra está acentuada corretamente?',
+      ['util', 'útil', 'utíl', 'utill'],
+      1,
+      'Lembre-se da regra das paroxítonas terminadas em -l: a forma correta é útil.',
+      0,
+      false,
+    ],
+    [
+      'Qual frase usa corretamente "mau" e "mal"?',
+      ['Ele é um mau aluno.', 'Ele é um mal aluno.', 'Ele estuda mau.', 'Ele fez mau o trabalho.'],
+      0,
+      'Lembre-se de que "mau" é o oposto de "bom" e acompanha substantivos, enquanto "mal" é o oposto de "bem": a frase correta é "Ele é um mau aluno."',
+      0,
+      false,
+    ],
+    [
+      'Qual é o substantivo da frase "O cachorro correu rápido."?',
+      ['O', 'cachorro', 'correu', 'rápido'],
+      1,
+      'Procure a palavra que dá nome a um ser: o substantivo da frase é "cachorro".',
+      1,
+      true,
+    ],
+    [
+      'Qual palavra é um verbo em "Maria canta uma música bonita."?',
+      ['Maria', 'canta', 'uma', 'bonita'],
+      1,
+      'Procure a palavra que indica ação: o verbo da frase é "canta".',
+      1,
+      true,
+    ],
+    [
+      'Qual é o plural de "cidadão"?',
+      ['cidadões', 'cidadãos', 'cidadães', 'cidadans'],
+      1,
+      'Lembre-se de que alguns substantivos terminados em -ão fazem plural em -ãos: o plural de "cidadão" é "cidadãos".',
+      1,
+      true,
+    ],
+    [
+      'Qual frase está de acordo com a concordância verbal?',
+      [
+        'Os alunos chegou cedo.',
+        'Os alunos chegaram cedo.',
+        'O alunos chegaram cedo.',
+        'Os aluno chegaram cedo.',
+      ],
+      1,
+      'Observe que o sujeito está no plural e o verbo precisa concordar com ele: "Os alunos chegaram cedo."',
+      1,
+      true,
+    ],
+    [
+      'Qual palavra é um adjetivo em "O menino feliz brincou."?',
+      ['menino', 'feliz', 'brincou', 'O'],
+      1,
+      'Procure a palavra que dá uma qualidade ao substantivo: o adjetivo é "feliz".',
+      1,
+      false,
+    ],
+    [
+      'Qual é o antônimo de "generoso"?',
+      ['Bondoso', 'Egoísta', 'Gentil', 'Alegre'],
+      1,
+      'Pense no oposto de quem divide o que tem: o antônimo de "generoso" é "egoísta".',
+      1,
+      false,
+    ],
+    [
+      'Qual é o plural de "pão"?',
+      ['pãos', 'pães', 'pões', 'pãoes'],
+      1,
+      'Lembre-se do plural em -ães de algumas palavras terminadas em -ão: o plural de "pão" é "pães".',
+      1,
+      false,
+    ],
+    [
+      'Em "Choveu muito ontem.", qual é a classe da palavra "ontem"?',
+      ['Substantivo', 'Adjetivo', 'Advérbio', 'Verbo'],
+      2,
+      'Observe que a palavra indica circunstância de tempo e não varia em gênero nem em número: "ontem" é um advérbio.',
+      1,
+      false,
+    ],
+  ],
+);
+DRAFTS.push(...PORTUGUES);
 
 const BASE_TIME = Date.UTC(2026, 0, 1, 0, 0, 0);
 

@@ -175,34 +175,94 @@ void main() {
     },
   );
 
-  testWidgets('every subject at once: grouped under one heading per subject', (
-    tester,
-  ) async {
-    await show(
-      tester,
-      body(
+  Map<String, Object?> evolution(String subject, List<List<num>> scores) => {
+    'subject': subject,
+    'slug': 'demo-${subject.toLowerCase()}',
+    'progress': [
+      for (final s in scores)
+        {
+          'attemptId': 'a-$subject-${s[0]}',
+          'submittedAt': '2026-01-01T00:00:00.000Z',
+          'scorePct': s[0],
+          'topics': [
+            {
+              'topicId': 't',
+              'topicName': 'Sub $subject',
+              'correctCount': 1,
+              'totalCount': 4,
+              'accuracyPct': s[1],
+            },
+          ],
+        },
+    ],
+  };
+
+  testWidgets(
+    'every subject at once: each topic says its subject, and every subject has its evolution',
+    (tester) async {
+      final response = body(
         progressSubject: 'Matemática',
         topics: [
           topic('eq', 'Equações', 'Matemática', 'HIGH'),
           topic('gb', 'Geografia do Brasil', 'Geografia', 'HIGH'),
           topic('ge', 'Geometria', 'Matemática', 'LOW'),
         ],
-      ),
-    );
-    expect(find.text('Recomendações'), findsOneWidget);
-    expect(find.byKey(const Key('subject-Geografia')), findsOneWidget);
-    expect(find.byKey(const Key('subject-Matemática')), findsOneWidget);
-    expect(find.text('Sua evolução em Matemática'), findsOneWidget);
+      );
+      response['evolutions'] = [
+        evolution('Geografia', [
+          [25, 25],
+        ]),
+        evolution('Matemática', [
+          [25, 25],
+          [50, 50],
+          [62.5, 75],
+        ]),
+      ];
+      await show(tester, response);
+      expect(find.text('Recomendação de estudo geral'), findsOneWidget);
 
-    double y(Finder f) => tester.getTopLeft(f).dy;
-    final geo = y(find.byKey(const Key('subject-Geografia')));
-    final math = y(find.byKey(const Key('subject-Matemática')));
-    expect(geo, lessThan(math)); // alphabetical
-    // Both Matemática topics sit under the Matemática heading, after Geografia's.
-    expect(y(find.textContaining('Equações •')), greaterThan(math));
-    expect(y(find.textContaining('Geometria •')), greaterThan(math));
-    expect(y(find.textContaining('Geografia do Brasil •')), lessThan(math));
-  });
+      // One evolution card per subject tried (not only the last simulado).
+      expect(find.text('Sua evolução em Geografia'), findsOneWidget);
+      expect(find.text('Sua evolução em Matemática'), findsOneWidget);
+      expect(find.text('25% → 50% → 62,5%'), findsOneWidget);
+
+      // The subject appears together with each subtopic, no separate headings.
+      expect(
+        find.textContaining(
+          'Geografia · Geografia do Brasil • prioridade alta',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Matemática · Equações • prioridade alta'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Matemática · Geometria • revisão opcional'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('subject-Geografia')), findsNothing);
+
+      double y(Finder f) => tester.getTopLeft(f).dy;
+      // Ordered by subject, high priority first inside each one.
+      expect(
+        y(find.textContaining('Geografia · Geografia do Brasil')),
+        lessThan(y(find.textContaining('Matemática · Equações'))),
+      );
+      expect(
+        y(find.textContaining('Matemática · Equações')),
+        lessThan(y(find.textContaining('Matemática · Geometria'))),
+      );
+    },
+  );
+
+  testWidgets(
+    'an older server without evolutions still shows its single evolution',
+    (tester) async {
+      await show(tester, body(progressSubject: 'Inglês', topics: []));
+      expect(find.text('Sua evolução em Inglês'), findsOneWidget);
+    },
+  );
 
   testWidgets('a subject without attempts says which simulado to take', (
     tester,

@@ -75,6 +75,22 @@ class ProgressPoint {
   final List<ProgressTopic> topics;
 }
 
+/// The evolution of one subject (always one simulado, so the scores are comparable).
+class SubjectEvolution {
+  const SubjectEvolution({required this.subject, required this.progress});
+
+  factory SubjectEvolution.fromJson(Map<String, dynamic> json) =>
+      SubjectEvolution(
+        subject: json['subject'] as String,
+        progress: (json['progress'] as List<dynamic>)
+            .map((p) => ProgressPoint.fromJson(p as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final String subject;
+  final List<ProgressPoint> progress;
+}
+
 class Recommendations {
   const Recommendations({
     required this.status,
@@ -83,6 +99,7 @@ class Recommendations {
     this.progress = const [],
     this.subject,
     this.progressSubject,
+    this.evolutions = const [],
   });
 
   factory Recommendations.fromJson(Map<String, dynamic> json) =>
@@ -97,6 +114,9 @@ class Recommendations {
             .toList(),
         subject: json['subject'] as String?,
         progressSubject: json['progressSubject'] as String?,
+        evolutions: ((json['evolutions'] as List<dynamic>?) ?? const [])
+            .map((e) => SubjectEvolution.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 
   /// `NO_HISTORY`, `ON_TRACK` or `NEEDS_REVIEW`.
@@ -112,4 +132,14 @@ class Recommendations {
 
   /// The subject the progress belongs to (progress is always about one simulado).
   final String? progressSubject;
+
+  /// One evolution per subject the student has tried (only the asked subject when limited).
+  /// Older servers do not send it; [evolutionsToShow] falls back to [progress].
+  final List<SubjectEvolution> evolutions;
+
+  List<SubjectEvolution> get evolutionsToShow => evolutions.isNotEmpty
+      ? evolutions
+      : progress.isEmpty
+      ? const []
+      : [SubjectEvolution(subject: progressSubject ?? '', progress: progress)];
 }

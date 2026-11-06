@@ -139,6 +139,8 @@ void main() {
             'Gramática',
             'Biologia',
             'Física e Química',
+            'Ortografia',
+            'Classes de Palavras',
           ];
       final used = <Color>{};
       for (final surface in surfaces) {
@@ -152,7 +154,7 @@ void main() {
           );
         }
       }
-      expect(used.length, 10, reason: 'the check covered the whole palette');
+      expect(used.length, 12, reason: 'the check covered the whole palette');
     });
   });
 

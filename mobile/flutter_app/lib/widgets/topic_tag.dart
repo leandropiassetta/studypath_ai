@@ -13,6 +13,8 @@ const List<Color> _palette = [
   Color(0xFFC2185B), // pink
   Color(0xFF0277BD), // blue
   Color(0xFF827717), // olive
+  Color(0xFF00838F), // cyan
+  Color(0xFF558B2F), // light green
 ];
 
 /// The known subjects each keep their own color; anything else falls back to the name hash below.
@@ -27,6 +29,8 @@ const Map<String, int> _subjectColor = {
   'Gramática': 4, // red
   'Biologia': 9, // olive
   'Física e Química': 6, // brown
+  'Ortografia': 10, // cyan
+  'Classes de Palavras': 11, // light green
 };
 
 /// Stable color per topic name (same topic, same color, on every screen and run).

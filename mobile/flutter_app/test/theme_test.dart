@@ -257,7 +257,7 @@ void main() {
       MaterialPageRoute<void>(builder: (_) => RecommendationsScreen(api: a)),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Recomendações'), findsOneWidget);
+    expect(find.text('Recomendação de estudo geral'), findsOneWidget);
     expect(find.byKey(const Key('theme-button')), findsOneWidget);
     await tapTheme(tester);
     expect(brightnessOf(tester), Brightness.dark);

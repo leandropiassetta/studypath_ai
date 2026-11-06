@@ -34,6 +34,7 @@ IconData _iconFor(QuizSummary quiz) {
   if (text.contains('hist')) return Icons.account_balance;
   if (text.contains('ingl')) return Icons.translate;
   if (text.contains('ci\u00eanc')) return Icons.science;
+  if (text.contains('portugu')) return Icons.spellcheck;
   return Icons.menu_book;
 }
 
@@ -85,16 +86,6 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
         title: const Text('Escolha um assunto'),
         actions: [
           const ThemeModeButton(),
-          IconButton(
-            key: const Key('recommendations-action'),
-            tooltip: 'Recomendações de estudo',
-            icon: const Icon(Icons.lightbulb_outline),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => RecommendationsScreen(api: widget.api),
-              ),
-            ),
-          ),
           if (widget.onLogout != null)
             IconButton(
               key: const Key('logout-button'),
@@ -154,7 +145,53 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
               onTap: () => _open(quiz),
             ),
           ),
+        const SizedBox(height: 12),
+        _GeneralRecommendationsCard(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => RecommendationsScreen(api: widget.api),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// Below the simulados: where to focus across every subject. Filled with the primary container
+/// color so it reads as a different kind of action than the simulado cards above it.
+class _GeneralRecommendationsCard extends StatelessWidget {
+  const _GeneralRecommendationsCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const Key('general-recommendations'),
+      color: scheme.primaryContainer,
+      child: ListTile(
+        minVerticalPadding: 16,
+        leading: Icon(
+          Icons.lightbulb_outline,
+          size: 32,
+          color: scheme.onPrimaryContainer,
+        ),
+        title: Text(
+          'Recomendação de estudo geral',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: scheme.onPrimaryContainer,
+          ),
+        ),
+        subtitle: Text(
+          'Veja em que focar em todas as matérias',
+          style: TextStyle(color: scheme.onPrimaryContainer),
+        ),
+        trailing: Icon(Icons.chevron_right, color: scheme.onPrimaryContainer),
+        onTap: onTap,
+      ),
     );
   }
 }

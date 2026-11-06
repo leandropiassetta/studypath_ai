@@ -149,7 +149,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Back on the recommendations, which reloaded (silently).
-    expect(find.text('Recomendações'), findsOneWidget);
+    expect(find.text('Recomendação de estudo geral'), findsOneWidget);
     expect(find.byKey(const Key('practice-eq')), findsOneWidget);
     expect(recsCalls, 2);
   });

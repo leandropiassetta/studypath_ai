@@ -46,6 +46,8 @@ class _StudyPathAppState extends State<StudyPathApp> {
     listenable: _theme,
     builder: (context, _) => MaterialApp(
       title: 'StudyPath AI',
+      // The "DEBUG" ribbon of debug builds covered the app-bar buttons (logout).
+      debugShowCheckedModeBanner: false,
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: _theme.mode,

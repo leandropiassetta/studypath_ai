@@ -14,6 +14,21 @@ const SuggestedQuestion = Type.Object({
   difficulty: Type.Union([Type.Literal('easy'), Type.Literal('medium'), Type.Literal('hard')]),
 });
 
+const ProgressPoint = Type.Object({
+  attemptId: Type.String(),
+  submittedAt: Type.String(),
+  scorePct: Type.Number(),
+  topics: Type.Array(
+    Type.Object({
+      topicId: Type.String(),
+      topicName: Type.String(),
+      correctCount: Type.Integer(),
+      totalCount: Type.Integer(),
+      accuracyPct: Type.Number(),
+    }),
+  ),
+});
+
 // Response schema is an allow-list: the answer key can never be serialized from here.
 export const RecommendationsResponse = Type.Object({
   studentId: Type.String(),
@@ -28,20 +43,13 @@ export const RecommendationsResponse = Type.Object({
   // Subject the progress belongs to (the simulado of the newest full attempt, or the asked one).
   progressSubject: Type.Union([Type.String(), Type.Null()]),
   // Oldest to newest, same window as the evaluation: lets the client show the trajectory.
-  progress: Type.Array(
+  progress: Type.Array(ProgressPoint),
+  // One entry per subject the student has taken a full simulado of (just that subject when asked).
+  evolutions: Type.Array(
     Type.Object({
-      attemptId: Type.String(),
-      submittedAt: Type.String(),
-      scorePct: Type.Number(),
-      topics: Type.Array(
-        Type.Object({
-          topicId: Type.String(),
-          topicName: Type.String(),
-          correctCount: Type.Integer(),
-          totalCount: Type.Integer(),
-          accuracyPct: Type.Number(),
-        }),
-      ),
+      subject: Type.String(),
+      slug: Type.String(),
+      progress: Type.Array(ProgressPoint),
     }),
   ),
   topics: Type.Array(

@@ -74,29 +74,29 @@ describe('schema', () => {
 });
 
 describe('seed', () => {
-  it('creates the demo student, 10 topics and the active demo quizzes', async () => {
+  it('creates the demo student, 12 topics and the active demo quizzes', async () => {
     expect(await count('SELECT count(*) n FROM students')).toBe(1);
-    expect(await count('SELECT count(*) n FROM topics')).toBe(10);
-    expect(await count('SELECT count(*) n FROM quizzes WHERE is_active')).toBe(5);
+    expect(await count('SELECT count(*) n FROM topics')).toBe(12);
+    expect(await count('SELECT count(*) n FROM quizzes WHERE is_active')).toBe(6);
     const quiz = await ds.getRepository(Quiz).findOneByOrFail({ slug: DEMO_QUIZ_SLUG });
     expect(quiz.isActive).toBe(true);
   });
 
-  it('has 40 quiz questions in 5 simulados, plus 48 extras', async () => {
+  it('has 48 quiz questions in 6 simulados, plus 56 extras', async () => {
     const links = await ds.getRepository(QuizQuestion).find({ order: { position: 'ASC' } });
-    expect(links).toHaveLength(40);
-    expect(await count('SELECT count(*) n FROM questions')).toBe(88);
+    expect(links).toHaveLength(48);
+    expect(await count('SELECT count(*) n FROM questions')).toBe(104);
     expect(
       await count(
         `SELECT count(*) n FROM questions q WHERE NOT EXISTS
          (SELECT 1 FROM quiz_questions qq WHERE qq.question_id = q.id)`,
       ),
-    ).toBe(48);
+    ).toBe(56);
     const perTopic = await ds.query<{ topic_id: string; n: string }[]>(
       `SELECT q.topic_id, count(*) n FROM quiz_questions qq
        JOIN questions q ON q.id = qq.question_id GROUP BY q.topic_id`,
     );
-    expect(perTopic.map((r) => Number(r.n))).toEqual(Array(10).fill(4));
+    expect(perTopic.map((r) => Number(r.n))).toEqual(Array(12).fill(4));
   });
 
   it('every correct option exists in its options (through the entity)', async () => {
@@ -107,7 +107,7 @@ describe('seed', () => {
 
   it('is idempotent', async () => {
     await seed(ds);
-    expect(await count('SELECT count(*) n FROM questions')).toBe(88);
-    expect(await count('SELECT count(*) n FROM quiz_questions')).toBe(40);
+    expect(await count('SELECT count(*) n FROM questions')).toBe(104);
+    expect(await count('SELECT count(*) n FROM quiz_questions')).toBe(48);
   });
 });

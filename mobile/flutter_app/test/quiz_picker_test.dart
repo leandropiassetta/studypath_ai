@@ -9,6 +9,8 @@ import 'package:studypath_app/screens/quiz_picker_screen.dart';
 import 'package:studypath_app/services/api_client.dart';
 import 'package:studypath_app/widgets/topic_tag.dart';
 
+import 'test_support.dart';
+
 http.Response json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
   status,
@@ -111,6 +113,8 @@ void main() {
       'Gramática',
       'Biologia',
       'Física e Química',
+      'Ortografia',
+      'Classes de Palavras',
     ];
     final colors = names.map(topicColor).toSet();
     expect(colors.length, names.length);
@@ -133,6 +137,16 @@ void main() {
     }
     expect(find.text('8 questões'), findsOneWidget);
     expect(find.text('1 questão'), findsOneWidget); // singular
+    // The general recommendation sits below the last simulado card.
+    final lastCard = tester
+        .getBottomLeft(find.byKey(const Key('quiz-card-demo-matematica')))
+        .dy;
+    final general = tester
+        .getTopLeft(find.byKey(const Key('general-recommendations')))
+        .dy;
+    expect(general, greaterThan(lastCard));
+    expect(find.text('Recomendação de estudo geral'), findsOneWidget);
+    expect(find.text('Veja em que focar em todas as matérias'), findsOneWidget);
     expect(find.text('Equações'), findsOneWidget);
     expect(find.text('Geometria'), findsOneWidget);
     expect(find.text('História'), findsOneWidget);
@@ -200,7 +214,9 @@ void main() {
     expect(find.text('Nenhum simulado disponível.'), findsOneWidget);
   });
 
-  testWidgets('the app bar has recommendations and logout', (tester) async {
+  testWidgets('the general recommendation card and logout work', (
+    tester,
+  ) async {
     var loggedOut = false;
     await pumpPicker(
       tester,
@@ -218,12 +234,31 @@ void main() {
       }),
       onLogout: () async => loggedOut = true,
     );
-    await tester.tap(find.byKey(const Key('recommendations-action')));
+    // The lightbulb in the app bar is gone: the general recommendation is a card below the list.
+    expect(find.byKey(const Key('recommendations-action')), findsNothing);
+    await tester.tap(find.byKey(const Key('general-recommendations')));
     await tester.pumpAndSettle();
-    expect(find.text('Recomendações'), findsOneWidget);
+    expect(find.text('Recomendação de estudo geral'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('logout-button')));
     expect(loggedOut, isTrue);
   });
+
+  testWidgets(
+    'the app hides the DEBUG ribbon that covered the app-bar buttons',
+    (tester) async {
+      phone(tester);
+      final api = apiWith((_) async => json(list));
+      await tester.pumpWidget(loggedInApp(api));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<MaterialApp>(find.byType(MaterialApp))
+            .debugShowCheckedModeBanner,
+        isFalse,
+      );
+      expect(find.byType(Banner), findsNothing);
+    },
+  );
 }

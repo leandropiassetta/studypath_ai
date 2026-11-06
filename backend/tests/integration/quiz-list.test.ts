@@ -36,6 +36,7 @@ describe('GET /api/v1/quizzes', () => {
       'demo-historia',
       'demo-ingles',
       'demo-matematica',
+      'demo-portugues',
     ]);
     const math = list.find((q) => q.slug === 'demo-matematica')!;
     expect(math.questionCount).toBe(8);
@@ -61,7 +62,13 @@ describe('GET /api/v1/quizzes', () => {
 
   it('each new simulado can be fetched and has 8 questions, 4 per subtopic', async () => {
     const user = await registerUser(app);
-    for (const slug of ['demo-geografia', 'demo-historia', 'demo-ingles', 'demo-ciencias']) {
+    for (const slug of [
+      'demo-geografia',
+      'demo-historia',
+      'demo-ingles',
+      'demo-ciencias',
+      'demo-portugues',
+    ]) {
       const res = await asUser(app, user.token).inject({
         method: 'GET',
         url: `/api/v1/quizzes/${slug}`,

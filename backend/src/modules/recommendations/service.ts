@@ -58,6 +58,23 @@ export class RecommendationService {
           .slice(0, RECENT_ATTEMPTS_WINDOW)
       : progressAttempts(attempts, RECENT_ATTEMPTS_WINDOW);
     const progressQuiz = scope ?? quizzes.find((q) => q.id === progress[0]?.quizId);
+    const toView = (list: typeof progress) =>
+      buildProgress(answers, list).map((p) => ({ ...p, submittedAt: p.submittedAt.toISOString() }));
+    // The general view shows how the student is doing in EVERY subject they have tried, each
+    // one compared only with itself (a score in History says nothing about Math).
+    const evolutions = quizzes
+      .filter((q) => !scope || q.id === scope.id)
+      .map((q) => ({
+        subject: q.subject,
+        slug: q.slug,
+        progress: toView(
+          attempts
+            .filter((a) => a.kind === 'standard' && a.quizId === q.id)
+            .slice(0, RECENT_ATTEMPTS_WINDOW),
+        ),
+      }))
+      .filter((e) => e.progress.length > 0)
+      .sort((a, b) => a.subject.localeCompare(b.subject, 'pt-BR'));
 
     return {
       studentId,
@@ -65,10 +82,8 @@ export class RecommendationService {
       evaluatedAttempts: attempts.length,
       subject: scope?.subject ?? null,
       progressSubject: progressQuiz?.subject ?? null,
-      progress: buildProgress(answers, progress).map((p) => ({
-        ...p,
-        submittedAt: p.submittedAt.toISOString(),
-      })),
+      progress: toView(progress),
+      evolutions,
       topics: review.map((t) => {
         const suggested = selectSuggestions(candidates.filter((c) => c.topicId === t.topicId));
         const available = suggested.length > 0;
