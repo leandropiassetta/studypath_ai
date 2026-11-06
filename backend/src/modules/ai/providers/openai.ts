@@ -43,28 +43,48 @@ export class OpenAIExplanationProvider implements ExplanationProvider {
     maxTokens: number,
     signal: AbortSignal,
   ): Promise<unknown> {
-    const res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      signal,
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${this.options.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.options.model,
-        max_completion_tokens: maxTokens,
-        // JSON mode: the system prompt asks for a JSON object; output is still validated.
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
-    // Status only: never put the response body or the key in the error (it ends up in logs).
-    if (!res.ok) throw new Error(`LLM request failed with status ${res.status}`);
+    // JSON mode makes some providers (Groq) reject a malformed generation with a 400
+    // "json_validate_failed". The model usually gets it right on a second try, so retry once.
+    let res: Response;
+    let code = '';
+    for (let attempt = 0; ; attempt++) {
+      res = await this.fetchImpl(`${this.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        signal,
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.options.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.options.model,
+          max_completion_tokens: maxTokens,
+          // JSON mode: the system prompt asks for a JSON object; output is still validated.
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+      });
+      if (res.ok) break;
+      code = await errorCode(res);
+      if (attempt === 0 && res.status === 400 && code === 'json_validate_failed') continue;
+      // Status and code only: never put the response body or the key in the error (it ends up in logs).
+      throw new Error(`LLM request failed with status ${res.status}${code ? ` (${code})` : ''}`);
+    }
 
     const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
     return body.choices?.[0]?.message?.content ?? null;
+  }
+}
+
+/** Provider error code only (e.g. "json_validate_failed"): short, no body, never the key. */
+async function errorCode(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: { code?: unknown; type?: unknown } };
+    const code = body.error?.code ?? body.error?.type;
+    return typeof code === 'string' && /^[\w.-]{1,60}$/.test(code) ? code : '';
+  } catch {
+    return '';
   }
 }

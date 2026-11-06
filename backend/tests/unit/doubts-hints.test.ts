@@ -227,3 +227,45 @@ describe('normalizeModelText', () => {
     expect(parseHint({ hint: 'sem escapes' })).toBe('sem escapes');
   });
 });
+
+describe('OpenAI-compatible provider error handling', () => {
+  const make = (statuses: { status: number; body: unknown }[]) => {
+    let calls = 0;
+    const provider = new OpenAIExplanationProvider({
+      apiKey: 'sk-test-secret',
+      model: 'm',
+      baseUrl: 'http://llm.test',
+      fetchImpl: (async () => {
+        const next = statuses[Math.min(calls++, statuses.length - 1)]!;
+        return new Response(JSON.stringify(next.body), { status: next.status });
+      }) as unknown as typeof fetch,
+    });
+    return { provider, calls: () => calls };
+  };
+  const ok = { status: 200, body: { choices: [{ message: { content: '{"hint":"ok"}' } }] } };
+  const badJson = { status: 400, body: { error: { code: 'json_validate_failed', message: 'x' } } };
+
+  it('retries once when the provider rejects malformed JSON, then succeeds', async () => {
+    const { provider, calls } = make([badJson, ok]);
+    expect(parseHint(await provider.hint(input(1), new AbortController().signal))).toBe('ok');
+    expect(calls()).toBe(2);
+  });
+
+  it('gives up after one retry and reports only the status and code', async () => {
+    const { provider, calls } = make([badJson, badJson, ok]);
+    await expect(provider.hint(input(1), new AbortController().signal)).rejects.toThrow(
+      'LLM request failed with status 400 (json_validate_failed)',
+    );
+    expect(calls()).toBe(2);
+  });
+
+  it('does not retry other errors and never echoes the body', async () => {
+    const { provider, calls } = make([
+      { status: 401, body: { error: { code: 'invalid_api_key', message: 'sk-test-secret' } } },
+    ]);
+    const err = await provider.hint(input(1), new AbortController().signal).catch((e: Error) => e);
+    expect((err as Error).message).toBe('LLM request failed with status 401 (invalid_api_key)');
+    expect((err as Error).message).not.toContain('sk-test-secret');
+    expect(calls()).toBe(1);
+  });
+});
