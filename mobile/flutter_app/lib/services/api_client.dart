@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/attempt_result.dart';
+import '../models/doubt.dart';
 import '../models/auth_session.dart';
 import '../models/explanation.dart';
 import '../models/quiz.dart';
@@ -139,6 +140,39 @@ class ApiClient {
       ),
     );
     return _parse(json, AttemptResult.fromJson);
+  }
+
+  /// Opens (or reopens) the doubt about a wrong answer. Hints already given come back with it.
+  Future<Doubt> openDoubt({
+    required String attemptId,
+    required String questionId,
+    String? message,
+  }) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/doubts'),
+        headers: _headers(json: true),
+        body: jsonEncode({
+          'attemptId': attemptId,
+          'questionId': questionId,
+          if (message != null && message.trim().isNotEmpty)
+            'message': message.trim(),
+        }),
+      ),
+    );
+    return _parse(json, Doubt.fromJson);
+  }
+
+  /// The server decides which level comes next (1, 2, then the full solution).
+  Future<HintResult> nextHint(String doubtId) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/doubts/${Uri.encodeComponent(doubtId)}/hints'),
+        headers: _headers(json: true),
+        body: '{}',
+      ),
+    );
+    return _parse(json, HintResult.fromJson);
   }
 
   /// Creates (or reuses) a review quiz for a topic that is currently in the recommendations.

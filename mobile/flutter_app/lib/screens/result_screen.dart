@@ -7,6 +7,7 @@ import '../widgets/centered_content.dart';
 import '../widgets/explanation_tile.dart';
 import '../widgets/theme_mode_button.dart';
 import '../widgets/topic_tag.dart';
+import 'doubt_screen.dart';
 import 'recommendations_screen.dart';
 
 /// pt-BR percentage without noise: 50 -> "50%", 87.5 -> "87,5%", 33.33 -> "33,33%".
@@ -115,10 +116,31 @@ class ResultScreen extends StatelessWidget {
                     if (!a.isCorrect)
                       Padding(
                         padding: const EdgeInsets.only(left: 56, bottom: 4),
-                        child: ExplanationTile(
-                          api: api,
-                          attemptId: result.attemptId,
-                          questionId: a.questionId,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ExplanationTile(
+                              api: api,
+                              attemptId: result.attemptId,
+                              questionId: a.questionId,
+                            ),
+                            if (byId[a.questionId] != null)
+                              TextButton.icon(
+                                key: Key('doubt-${a.questionId}'),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => DoubtScreen(
+                                      api: api,
+                                      attemptId: result.attemptId,
+                                      question: byId[a.questionId]!,
+                                      selectedOption: a.selectedOption,
+                                    ),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.help_outline),
+                                label: const Text('Tirar dúvida'),
+                              ),
+                          ],
                         ),
                       ),
                   ],
