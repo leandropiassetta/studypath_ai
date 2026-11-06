@@ -30,11 +30,12 @@ export class DoubtService {
     private readonly answers: ExplanationRepository,
     private readonly provider: ExplanationProvider | null,
     private readonly timeoutMs: number,
-    limits: UsageLimits = DEFAULT_USAGE_LIMITS,
+    /** Pass a shared UsageLimiter so explanations, hints and the background job use ONE budget. */
+    limits: UsageLimits | UsageLimiter = DEFAULT_USAGE_LIMITS,
     now: () => number = Date.now,
     private readonly jobs?: DoubtJobs,
   ) {
-    this.limiter = new UsageLimiter(limits, now);
+    this.limiter = limits instanceof UsageLimiter ? limits : new UsageLimiter(limits, now);
     this.now = now;
   }
 
@@ -120,6 +121,10 @@ export class DoubtService {
     log: FastifyBaseLogger,
   ): Promise<{ text: string; source: 'llm' | 'reference'; notice?: string }> {
     const fallback = { text: referenceHint(input, input.level), source: 'reference' as const };
+    // The last hint is the full solution. It always comes from the stored reference explanation
+    // (written and checked by people): a free model got spelling and facts wrong exactly here, and
+    // it spends no AI budget. The model only writes the guiding hints 1 and 2.
+    if (input.level >= MAX_HINTS) return fallback;
     const provider = this.provider;
     if (!provider?.hint) return fallback;
 
@@ -134,13 +139,8 @@ export class DoubtService {
         log.warn('Hint output rejected by validation; using the reference hint');
         return fallback;
       }
-      if (input.level < MAX_HINTS && leaksAnswer(text, input)) {
+      if (leaksAnswer(text, input)) {
         log.warn({ level: input.level }, 'Hint would reveal the answer; using the reference hint');
-        return fallback;
-      }
-      // The last hint is the full solution: it has to actually conclude with the answer.
-      if (input.level >= MAX_HINTS && !leaksAnswer(text, input)) {
-        log.warn('Final hint does not state the answer; using the reference solution');
         return fallback;
       }
       return { text, source: 'llm' };

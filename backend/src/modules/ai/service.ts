@@ -29,10 +29,11 @@ export class ExplanationService {
     private readonly repo: ExplanationRepository,
     private readonly provider: ExplanationProvider | null,
     private readonly timeoutMs: number,
-    limits: UsageLimits = DEFAULT_USAGE_LIMITS,
+    /** Pass a shared UsageLimiter so explanations, hints and the background job use ONE budget. */
+    limits: UsageLimits | UsageLimiter = DEFAULT_USAGE_LIMITS,
     now: () => number = Date.now,
   ) {
-    this.limiter = new UsageLimiter(limits, now);
+    this.limiter = limits instanceof UsageLimiter ? limits : new UsageLimiter(limits, now);
     this.cache = new ExplanationCache(500, 24 * 60 * 60_000, now);
   }
 

@@ -36,6 +36,13 @@ describe('leaksAnswer', () => {
     'Logo x = 3.',
     'O resultado é 3',
     'ficamos com x igual a 3',
+    'A solução final é 3',
+    'O valor correto é 3.',
+    'Resultado: 3',
+    'A resposta correta é 3',
+    'Logo, 6 / 2 = 3',
+    'Isso dá 3',
+    'O total seria 3',
   ])('detects "%s"', (hint) => {
     expect(leaksAnswer(hint, input(1))).toBe(true);
   });
@@ -46,6 +53,9 @@ describe('leaksAnswer', () => {
     'Quanto falta para chegar a 5 partindo do 2?', // numbers alone are fine
     'Você marcou A; verifique se essa conta funciona.',
     'Veja a alternativa Bastante parecida', // "B" inside a word is not a mention
+    'Pense no valor de x e no que cada lado da conta representa.',
+    'Qual é a solução? Comece isolando o x.',
+    'O resultado depende do passo anterior; faça 5 - 2 antes.',
   ])('allows "%s"', (hint) => {
     expect(leaksAnswer(hint, input(1))).toBe(false);
   });

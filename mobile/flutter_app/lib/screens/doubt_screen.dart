@@ -445,7 +445,13 @@ class _HintCard extends StatelessWidget {
                     style: theme.textTheme.titleSmall,
                   ),
                   Chip(
-                    label: Text(hint.isAi ? 'IA' : 'Dica padrão'),
+                    label: Text(
+                      hint.isAi
+                          ? 'IA'
+                          : hint.level >= 3
+                          ? 'Solução'
+                          : 'Dica padrão',
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],

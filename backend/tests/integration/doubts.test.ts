@@ -228,21 +228,28 @@ describe('graded hints', () => {
     expect(h1.text).not.toMatch(/alternativa correta é B/);
     expect(h2.source).toBe('reference');
     expect(h2.text).toMatch(/^Dica: Divida os dois lados por 2/);
-    expect(h3).toMatchObject({ source: 'llm', text: 'Resolvendo: x = 5, alternativa B.' }); // allowed on level 3
+    // The full solution never comes from the model, so even a model that would state it is ignored.
+    expect(h3).toMatchObject({ source: 'reference' });
+    expect(h3.text).toContain('A alternativa correta é B.');
   });
 
-  it('a final hint that never states the answer is replaced by the full reference solution', async () => {
-    const vague = providerReturning({
-      1: { hint: 'Qual operação isola x?' },
-      2: { hint: 'Subtraia dos dois lados.' },
-      3: { hint: 'Pense com calma e refaça a conta.' }, // allowed on levels 1-2, useless as a solution
-    });
-    const app = appWith(vague);
+  it('the final hint (the full solution) never calls the model and spends no AI budget', async () => {
+    let calls = 0;
+    const counting: ExplanationProvider = {
+      explain: async () => ({ explanation: 'x' }),
+      hint: async () => {
+        calls += 1;
+        return { hint: 'Qual operação isola x?' };
+      },
+    };
+    const app = appWith(counting, { aiLimits: { perMinute: 2, perDay: 50 } });
     const doubtId = (await openDoubt(app, await submit(app))).json().id as string;
     await hint(app, doubtId);
     await hint(app, doubtId);
-    const h3 = (await hint(app, doubtId)).json();
-    expect(h3.source).toBe('reference');
+    const h3 = (await hint(app, doubtId)).json(); // the budget (2) is already used up
+    expect(calls).toBe(2);
+    expect(h3).toMatchObject({ level: 3, source: 'reference' });
+    expect(h3.notice).toBeUndefined(); // not "limit reached": it simply is not an AI hint
     expect(h3.text).toContain('A alternativa correta é B.');
   });
 

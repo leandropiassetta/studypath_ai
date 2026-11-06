@@ -4,7 +4,7 @@ import { ExplanationRepository } from './modules/ai/repository.js';
 import { explanationRoutes } from './modules/ai/routes.js';
 import { ExplanationService } from './modules/ai/service.js';
 import type { ExplanationProvider } from './modules/ai/providers/types.js';
-import type { UsageLimits } from './modules/ai/usage.js';
+import { DEFAULT_USAGE_LIMITS, UsageLimiter, type UsageLimits } from './modules/ai/usage.js';
 import { AttemptRepository } from './modules/attempts/repository.js';
 import { attemptRoutes } from './modules/attempts/routes.js';
 import { AttemptService } from './modules/attempts/service.js';
@@ -36,6 +36,11 @@ export interface AppOptions {
   aiTimeoutMs?: number;
   /** Per-student cost guards for the LLM endpoint (defaults: 6 per minute, 50 per 24 h). */
   aiLimits?: UsageLimits;
+  /**
+   * One shared AI budget per student (explanations + hints + the background analysis). When
+   * omitted it is built from [aiLimits]. Pass the same instance to the job worker.
+   */
+  aiUsage?: UsageLimiter;
   /** Session lifetime and scrypt cost (tests lower the cost to stay fast). */
   auth?: {
     sessionTtlMs?: number;
@@ -53,6 +58,7 @@ export function buildApp({
   explanationProvider = null,
   aiTimeoutMs = 8000,
   aiLimits,
+  aiUsage,
   auth: authOptions = {},
   doubtJobs,
   logger = false,
@@ -100,6 +106,7 @@ export function buildApp({
     now: authOptions.now,
   });
   const requireAuth = createRequireAuth(app, auth);
+  const usage = aiUsage ?? new UsageLimiter(aiLimits ?? DEFAULT_USAGE_LIMITS, authOptions.now);
 
   // Public: liveness and the sign-up / login endpoints (logout and /me require a session).
   void app.register(healthRoutes(dataSource));
@@ -120,7 +127,7 @@ export function buildApp({
             new ExplanationRepository(dataSource),
             explanationProvider,
             aiTimeoutMs,
-            aiLimits,
+            usage,
           ),
         ),
       );
@@ -129,7 +136,7 @@ export function buildApp({
         new ExplanationRepository(dataSource),
         explanationProvider,
         aiTimeoutMs,
-        aiLimits,
+        usage,
         Date.now,
         doubtJobs,
       );

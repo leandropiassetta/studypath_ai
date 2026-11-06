@@ -264,6 +264,28 @@ void main() {
       },
     );
 
+    testWidgets(
+      'the final hint from the reference is labelled as the solution',
+      (tester) async {
+        await pumpDoubt(
+          tester,
+          apiWith(
+            MockClient((req) async {
+              if (req.url.path.endsWith('/hints')) {
+                return json(hintJson(3, source: 'reference'));
+              }
+              return json(doubtJson(), 201);
+            }),
+          ),
+        );
+        await tester.tap(find.byKey(const Key('ask-hint')));
+        await tester.pumpAndSettle();
+        expect(find.text('Solução'), findsOneWidget);
+        expect(find.text('Dica padrão'), findsNothing);
+        expect(find.text('IA'), findsNothing);
+      },
+    );
+
     testWidgets('shows progress while asking and ignores a second tap', (
       tester,
     ) async {

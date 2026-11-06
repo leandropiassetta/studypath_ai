@@ -15,6 +15,11 @@ const logger = {
   warn: (obj: object, msg: string) => console.warn(msg, JSON.stringify(obj)),
 };
 const explanationProvider = createExplanationProvider(env);
+// ONE budget shared by explanations, hints and the background analysis.
+const aiUsage = new UsageLimiter({
+  perMinute: env.AI_MAX_CALLS_PER_MINUTE,
+  perDay: env.AI_MAX_CALLS_PER_DAY,
+});
 const queue = env.REDIS_URL
   ? createDoubtQueue({
       redisUrl: env.REDIS_URL,
@@ -25,10 +30,7 @@ const queue = env.REDIS_URL
         provider: explanationProvider,
         timeoutMs: env.AI_TIMEOUT_MS,
         log: logger,
-        limiter: new UsageLimiter({
-          perMinute: env.AI_MAX_CALLS_PER_MINUTE,
-          perDay: env.AI_MAX_CALLS_PER_DAY,
-        }),
+        limiter: aiUsage,
       },
     })
   : null;
@@ -41,10 +43,7 @@ const app = buildApp({
     sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60_000,
     teacherInviteCode: env.TEACHER_INVITE_CODE,
   },
-  aiLimits: {
-    perMinute: env.AI_MAX_CALLS_PER_MINUTE,
-    perDay: env.AI_MAX_CALLS_PER_DAY,
-  },
+  aiUsage,
   logger: true,
 });
 

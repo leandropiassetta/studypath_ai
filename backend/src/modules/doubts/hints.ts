@@ -18,8 +18,13 @@ export function leaksAnswer(hint: string, input: HintInput): boolean {
   const correct = input.options.find((o) => o.key === input.correctOption)?.text.trim();
   if (correct) {
     const value = escape(correct);
+    // "x = 5", "A resposta é 5", "Resultado: 5", "A solução final é 5", "O valor correto é 5",
+    // "dá 5", "vale 5", "10 / 2 = 5": any way of stating the final value. Still a heuristic: it
+    // lowers the chance of an early leak, it does not prove there is none.
     const stating = new RegExp(
-      `(\\b[a-z]\\s*=|resultado\\s*(é|=)|resposta\\s*(é|=)|igual a)\\s*${value}(?![\\p{L}\\p{N}])`,
+      `(\\b[a-z]\\s*=|=|igual a|` +
+        `(solu[cç][aã]o|valor|resultado|resposta|n[uú]mero|total)(\\s+(final|correta|correto|certa|certo))?\\s*(é|=|:|seria|fica|vale)|` +
+        `(?<![\\p{L}\\p{N}])(d[aá]|vale|fica|resulta em|chega a)(?![\\p{L}\\p{N}]))\\s*${value}(?![\\p{L}\\p{N}])`,
       'iu',
     );
     if (stating.test(hint)) return true;
