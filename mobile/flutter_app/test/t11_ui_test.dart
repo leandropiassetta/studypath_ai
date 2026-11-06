@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:studypath_app/main.dart';
+
+import 'test_support.dart';
+
 import 'package:studypath_app/models/explanation.dart';
 import 'package:studypath_app/services/api_client.dart';
 
@@ -101,8 +103,8 @@ Future<void> answerAndSubmit(WidgetTester tester) async {
 Future<void> pumpApp(WidgetTester tester, MockClient mock) async {
   await reachResult(tester);
   await tester.pumpWidget(
-    StudyPathApp(
-      api: ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock),
+    loggedInApp(
+      ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock),
     ),
   );
   await tester.pumpAndSettle();

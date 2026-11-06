@@ -6,10 +6,4 @@ const String apiBaseUrl = String.fromEnvironment(
   defaultValue: 'http://127.0.0.1:3000',
 );
 
-/// Fictional demo student seeded by the backend (see README).
-const String demoStudentId = String.fromEnvironment(
-  'DEMO_STUDENT_ID',
-  defaultValue: '55555555-5555-4555-8555-555555555555',
-);
-
 const String demoQuizSlug = 'demo-matematica';

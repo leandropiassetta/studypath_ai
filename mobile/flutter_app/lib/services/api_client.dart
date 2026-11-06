@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/attempt_result.dart';
+import '../models/auth_session.dart';
 import '../models/explanation.dart';
 import '../models/quiz.dart';
 import '../models/recommendations.dart';
@@ -23,15 +24,83 @@ class ApiException implements Exception {
 class ApiClient {
   ApiClient({
     required this.baseUrl,
-    required this.studentId,
+    this.studentId = '',
     http.Client? client,
     this.timeout = const Duration(seconds: 10),
   }) : _client = client ?? http.Client();
 
   final String baseUrl;
-  final String studentId;
   final Duration timeout;
   final http.Client _client;
+
+  /// The logged-in student (set by [useSession]); used in request paths and bodies.
+  String studentId;
+  String? _token;
+
+  /// Called when the API says the session is no longer valid (expired or revoked).
+  void Function()? onUnauthorized;
+
+  bool get hasSession => _token != null;
+
+  void useSession(AuthSession session) {
+    _token = session.token;
+    studentId = session.student.id;
+  }
+
+  void clearSession() {
+    _token = null;
+    studentId = '';
+  }
+
+  Map<String, String> _headers({bool json = false}) => {
+    if (json) 'content-type': 'application/json',
+    if (_token != null) 'authorization': 'Bearer $_token',
+  };
+
+  Future<AuthSession> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/auth/register'),
+        headers: _headers(json: true),
+        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+      ),
+      authenticated: false,
+    );
+    return _parse(json, AuthSession.fromJson);
+  }
+
+  Future<AuthSession> login({
+    required String email,
+    required String password,
+  }) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/auth/login'),
+        headers: _headers(json: true),
+        body: jsonEncode({'email': email, 'password': password}),
+      ),
+      authenticated: false,
+    );
+    return _parse(json, AuthSession.fromJson);
+  }
+
+  /// Best effort: the local session is dropped even if the server cannot be reached.
+  Future<void> logout() async {
+    try {
+      await _send(
+        () => _client.post(_uri('/auth/logout'), headers: _headers(json: true)),
+        authenticated: false,
+      );
+    } on ApiException {
+      // The token will simply expire on the server.
+    } finally {
+      clearSession();
+    }
+  }
 
   /// Tolerates a trailing slash in API_BASE_URL (".../" would otherwise give "//api/v1").
   Uri _uri(String path) =>
@@ -39,7 +108,10 @@ class ApiClient {
 
   Future<Quiz> fetchQuiz(String slug) async {
     final json = await _send(
-      () => _client.get(_uri('/quizzes/${Uri.encodeComponent(slug)}')),
+      () => _client.get(
+        _uri('/quizzes/${Uri.encodeComponent(slug)}'),
+        headers: _headers(),
+      ),
     );
     return _parse(json, Quiz.fromJson);
   }
@@ -62,7 +134,7 @@ class ApiClient {
     final json = await _send(
       () => _client.post(
         _uri('/attempts'),
-        headers: {'content-type': 'application/json'},
+        headers: _headers(json: true),
         body: body,
       ),
     );
@@ -74,7 +146,7 @@ class ApiClient {
     final json = await _send(
       () => _client.post(
         _uri('/students/$studentId/review-quizzes'),
-        headers: {'content-type': 'application/json'},
+        headers: _headers(json: true),
         body: jsonEncode({'topicId': topicId}),
       ),
     );
@@ -89,7 +161,7 @@ class ApiClient {
     final json = await _send(
       () => _client.post(
         _uri('/attempts/$attemptId/explanations'),
-        headers: {'content-type': 'application/json'},
+        headers: _headers(json: true),
         body: jsonEncode({'questionId': questionId}),
       ),
     );
@@ -98,7 +170,10 @@ class ApiClient {
 
   Future<Recommendations> fetchRecommendations() async {
     final json = await _send(
-      () => _client.get(_uri('/students/$studentId/recommendations')),
+      () => _client.get(
+        _uri('/students/$studentId/recommendations'),
+        headers: _headers(),
+      ),
     );
     return _parse(json, Recommendations.fromJson);
   }
@@ -120,8 +195,9 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _send(
-    Future<http.Response> Function() request,
-  ) async {
+    Future<http.Response> Function() request, {
+    bool authenticated = true,
+  }) async {
     final http.Response response;
     try {
       response = await request().timeout(timeout);
@@ -135,6 +211,20 @@ class ApiClient {
         'Não foi possível conectar à API.',
         code: 'NETWORK',
       );
+    }
+
+    if (response.statusCode == 401 && authenticated) {
+      onUnauthorized?.call();
+      throw const ApiException(
+        'Sua sessão expirou. Entre de novo.',
+        statusCode: 401,
+        code: 'UNAUTHENTICATED',
+      );
+    }
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300 &&
+        response.bodyBytes.isEmpty) {
+      return const {}; // e.g. 204 No Content
     }
 
     Map<String, dynamic>? decoded;

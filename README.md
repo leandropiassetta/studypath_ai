@@ -9,7 +9,7 @@ MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A es
 ## Como funciona
 
 - **Backend** (`backend/`): Node.js + Fastify + TypeScript strict, TypeORM, PostgreSQL. Camadas `routes → service → repository`, com regras de domínio puras (correção e recomendações) e sem uso de LLM.
-- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com simulado, resultado e recomendações.
+- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com cadastro/login, simulado, resultado, recomendações e quiz de revisão. A sessão fica **só em memória**: fechar o app desloga (nada é gravado em disco).
 - **Banco**: PostgreSQL 16 via Docker Compose, com migrations versionadas e seed determinístico.
 
 ## Requisitos
@@ -100,6 +100,7 @@ Teste de resiliência no app: pare a API (`Ctrl+C`), tente enviar e veja o erro 
 - Autenticação: senhas com scrypt (sal por usuário, comparação em tempo constante, NFKC), sessões por token aleatório de 256 bits **guardado só como SHA-256**, login com erro genérico e custo constante (sem enumerar e-mails), limite de tentativas (5 erros por conta/IP e 20 por IP em 15 min; 20 cadastros por IP por hora) e `Retry-After`. Cada rota usa o aluno da sessão. Sem TLS: a API escuta só em `127.0.0.1` e recusa outro `HOST` sem `ALLOW_NON_LOOPBACK_HOST=true`. CORS só para origens `localhost`/`127.0.0.1`.
 - Respostas da API com `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
 - Chave da LLM só em `.env` (ignorado pelo git); o hook de pré-commit (`scripts/check-secrets.sh`) bloqueia credenciais; os logs redigem `authorization`, `x-api-key` e cookies.
+- No app, o token da sessão nunca é gravado em disco (só em memória); sair da conta encerra a sessão também no servidor, e uma sessão expirada leva de volta ao login com um aviso.
 - Os testes recusam rodar `DROP SCHEMA` em qualquer banco que não seja local e terminado em `_test`.
 - `npm audit --omit=dev`: 0 vulnerabilidades. O `npm audit` completo aponta 10 avisos moderados só na cadeia do ESLint (ferramenta de desenvolvimento); a correção automática exigiria rebaixar o ESLint e quebraria o lint, então foi deliberadamente não aplicada.
 

@@ -14,6 +14,8 @@ class QuizScreen extends StatefulWidget {
     required this.api,
     required this.slug,
     this.initialQuiz,
+    this.studentName,
+    this.onLogout,
   });
 
   final ApiClient api;
@@ -21,6 +23,10 @@ class QuizScreen extends StatefulWidget {
 
   /// A quiz that was already created (review quizzes): no loading step is needed.
   final Quiz? initialQuiz;
+
+  /// Shown in the app bar menu together with the logout action (home quiz only).
+  final String? studentName;
+  final Future<void> Function()? onLogout;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -128,7 +134,20 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) {
     final quiz = _quiz;
     return Scaffold(
-      appBar: AppBar(title: Text(quiz?.title ?? 'Simulado')),
+      appBar: AppBar(
+        title: Text(quiz?.title ?? 'Simulado'),
+        actions: [
+          if (widget.onLogout != null)
+            IconButton(
+              key: const Key('logout-button'),
+              tooltip: widget.studentName == null
+                  ? 'Sair da conta'
+                  : 'Sair da conta de ${widget.studentName}',
+              icon: const Icon(Icons.logout),
+              onPressed: () => widget.onLogout?.call(),
+            ),
+        ],
+      ),
       body: CenteredContent(
         child: _loading
             ? const LoadingView()
