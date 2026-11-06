@@ -9,7 +9,7 @@ MVP de simulados, diagnóstico de dificuldades e recomendações de estudo. A es
 ## Como funciona
 
 - **Backend** (`backend/`): Node.js + Fastify + TypeScript strict, TypeORM, PostgreSQL. Camadas `routes → service → repository`, com regras de domínio puras (correção e recomendações) e sem uso de LLM.
-- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com cadastro/login, simulado, resultado, recomendações e quiz de revisão. A sessão fica **só em memória**: fechar o app desloga (nada é gravado em disco). Segue o tema claro/escuro do sistema.
+- **App** (`mobile/flutter_app/`): Flutter (`http` + `setState`) com cadastro/login, simulado, resultado, recomendações e quiz de revisão. A sessão fica **só em memória**: fechar o app desloga (nada é gravado em disco). Tema: um botão na barra de cima de todas as telas troca **direto** entre claro e escuro com um toque (lua para ir ao escuro, sol para voltar ao claro, sem menu); o app abre com o tema do sistema e a escolha vale enquanto estiver aberto.
 - **Banco**: PostgreSQL 16 via Docker Compose, com migrations versionadas e seed determinístico.
 
 ## Requisitos

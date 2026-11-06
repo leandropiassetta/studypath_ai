@@ -7,6 +7,7 @@ import '../utils/plural.dart';
 import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/question_card.dart';
+import '../widgets/theme_mode_button.dart';
 import 'result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -178,6 +179,7 @@ class _QuizScreenState extends State<QuizScreen> {
         appBar: AppBar(
           title: Text(quiz?.title ?? 'Simulado'),
           actions: [
+            const ThemeModeButton(),
             if (widget.onLogout != null)
               IconButton(
                 key: const Key('logout-button'),

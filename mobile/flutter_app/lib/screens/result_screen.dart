@@ -5,6 +5,7 @@ import '../models/quiz.dart';
 import '../services/api_client.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/explanation_tile.dart';
+import '../widgets/theme_mode_button.dart';
 import '../widgets/topic_tag.dart';
 import 'recommendations_screen.dart';
 
@@ -37,7 +38,10 @@ class ResultScreen extends StatelessWidget {
         quiz.questions[i].id: i + 1,
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('Resultado')),
+      appBar: AppBar(
+        title: const Text('Resultado'),
+        actions: const [ThemeModeButton()],
+      ),
       body: CenteredContent(
         child: ListView(
           padding: const EdgeInsets.all(16),

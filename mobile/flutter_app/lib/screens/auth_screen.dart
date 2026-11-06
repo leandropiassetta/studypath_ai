@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/api_client.dart';
 import '../services/session_controller.dart';
 import '../widgets/centered_content.dart';
+import '../widgets/theme_mode_button.dart';
 
 enum AuthMode { login, register }
 
@@ -130,7 +131,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 24),
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: ThemeModeButton(),
+                    ),
+                    const SizedBox(height: 8),
                     Semantics(
                       header: true,
                       child: Text(

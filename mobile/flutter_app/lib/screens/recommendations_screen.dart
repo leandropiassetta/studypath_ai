@@ -6,6 +6,7 @@ import '../utils/plural.dart';
 import '../widgets/async_body.dart';
 import '../widgets/centered_content.dart';
 import '../widgets/progress_section.dart';
+import '../widgets/theme_mode_button.dart';
 import '../widgets/question_card.dart';
 import 'quiz_screen.dart';
 import 'result_screen.dart' show formatPct;
@@ -79,7 +80,10 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Recomendações')),
+    appBar: AppBar(
+      title: const Text('Recomendações'),
+      actions: const [ThemeModeButton()],
+    ),
     body: CenteredContent(
       child: _loading
           ? const LoadingView()
