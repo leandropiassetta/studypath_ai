@@ -26,15 +26,15 @@ export class OpenAIExplanationProvider implements ExplanationProvider {
   }
 
   explain(input: ExplanationInput, signal: AbortSignal): Promise<unknown> {
-    return this.chat(SYSTEM_PROMPT, buildUserMessage(input), 800, signal);
+    return this.chat(SYSTEM_PROMPT, buildUserMessage(input), 1500, signal);
   }
 
   hint(input: HintInput, signal: AbortSignal): Promise<unknown> {
-    return this.chat(HINT_SYSTEM_PROMPT, buildHintMessage(input), 500, signal);
+    return this.chat(HINT_SYSTEM_PROMPT, buildHintMessage(input), 1200, signal);
   }
 
   analyze(input: AnalysisInput, signal: AbortSignal): Promise<unknown> {
-    return this.chat(ANALYZE_SYSTEM_PROMPT, buildAnalyzeMessage(input), 200, signal);
+    return this.chat(ANALYZE_SYSTEM_PROMPT, buildAnalyzeMessage(input), 800, signal);
   }
 
   private async chat(

@@ -35,7 +35,7 @@ O id do job é o id da dúvida, então chamar duas vezes não duplica. Se o Redi
 
 ## IA gratuita (Groq)
 
-Crie uma chave grátis em console.groq.com e suba a API com `AI_MODE=real LLM_PROVIDER=openai LLM_BASE_URL=https://api.groq.com/openai LLM_MODEL=llama-3.3-70b-versatile LLM_API_KEY=...` (a chave vai em variável de ambiente, nunca no repositório). O plano grátis tem limite por minuto/dia: se estourar, cai no texto de referência.
+Crie uma chave grátis em console.groq.com e suba a API com `AI_MODE=real LLM_PROVIDER=openai LLM_BASE_URL=https://api.groq.com/openai LLM_MODEL=openai/gpt-oss-20b LLM_API_KEY=...` (a chave vai em variável de ambiente, nunca no repositório). O plano grátis tem limite por minuto/dia: se estourar, cai no texto de referência.
 
 ## O que dizer sobre as decisões
 
