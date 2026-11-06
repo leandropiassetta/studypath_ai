@@ -1,0 +1,89 @@
+name: CI
+
+# Runs on every push to main and on every pull request: lint, types, build, tests (with real
+# PostgreSQL and Redis) for the API, and analyze + tests for the Flutter app.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: API (lint, types, build, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: studypath
+          POSTGRES_PASSWORD: studypath
+          POSTGRES_DB: studypath
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studypath -d studypath"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: No environment file is tracked (only .env.example)
+        run: |
+          if git ls-files | grep -E '(^|/)\.env' | grep -v '\.env\.example$'; then
+            echo "A .env file is tracked. Remove it and rotate any key it held." >&2
+            exit 1
+          fi
+
+      - name: Create the isolated test database (the same one docker/init-test-db.sql creates locally)
+        run: PGPASSWORD=studypath psql -h 127.0.0.1 -U studypath -d studypath -c 'CREATE DATABASE studypath_test'
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+      - name: Dependency audit (production dependencies, high and above)
+        run: npm audit --omit=dev --audit-level=high
+
+  mobile:
+    name: App Flutter (analyze, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile/flutter_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
