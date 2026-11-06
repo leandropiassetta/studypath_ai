@@ -31,6 +31,18 @@ describe('CORS (loopback only)', () => {
     expect(res.headers['access-control-allow-headers']).toContain('authorization');
   });
 
+  it('allows every method the app uses from the browser, including PUT ("Isso ajudou?")', async () => {
+    for (const method of ['GET', 'POST', 'PUT']) {
+      const res = await app.inject({
+        method: 'OPTIONS',
+        url: '/api/v1/doubts/00000000-0000-4000-8000-000000000000/feedback',
+        headers: { origin: 'http://localhost:5555', 'access-control-request-method': method },
+      });
+      expect(res.statusCode).toBe(204);
+      expect(res.headers['access-control-allow-methods'], method).toContain(method);
+    }
+  });
+
   it('adds the allow-origin header on normal responses', async () => {
     const res = await app.inject({
       method: 'GET',

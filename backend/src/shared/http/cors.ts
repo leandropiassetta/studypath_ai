@@ -13,7 +13,7 @@ export function registerLoopbackCors(app: FastifyInstance): void {
     void reply.header('vary', 'Origin');
     if (req.method === 'OPTIONS') {
       void reply
-        .header('access-control-allow-methods', 'GET, POST, OPTIONS')
+        .header('access-control-allow-methods', 'GET, POST, PUT, OPTIONS')
         .header('access-control-allow-headers', 'content-type, authorization')
         .header('access-control-max-age', '600')
         .status(204)

@@ -306,3 +306,13 @@ describe('leaksAnswer for non-math subjects', () => {
     expect(leaksAnswer('Brasília é uma cidade planejada.', input)).toBe(false);
   });
 });
+
+describe('the hint prompt answers the student question first', () => {
+  it('asks the model to address studentMessage with a short definition, without the answer', () => {
+    expect(HINT_SYSTEM_PROMPT).toMatch(/studentMessage/);
+    expect(HINT_SYSTEM_PROMPT).toMatch(/definição/);
+    expect(HINT_SYSTEM_PROMPT).toMatch(/sem citar a alternativa correta/);
+    const msg = buildHintMessage(input(1, { studentMessage: 'o que é uma equação?' }));
+    expect(msg).toContain('"studentMessage":"o que é uma equação?"');
+  });
+});
