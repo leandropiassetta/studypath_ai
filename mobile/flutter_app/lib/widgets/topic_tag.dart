@@ -9,16 +9,24 @@ const List<Color> _palette = [
   Color(0xFF8E24AA), // purple
   Color(0xFFC62828), // red
   Color(0xFF2E7D32), // green
+  Color(0xFF6D4C41), // brown
+  Color(0xFFC2185B), // pink
+  Color(0xFF0277BD), // blue
+  Color(0xFF827717), // olive
 ];
 
 /// The known subjects each keep their own color; anything else falls back to the name hash below.
 const Map<String, int> _subjectColor = {
   'Equações': 2, // orange
   'Geometria': 1, // teal
-  'Geografia': 0, // indigo
-  'História': 3, // purple
-  'Inglês': 4, // red
-  'Ciências': 5, // green
+  'Geografia do Brasil': 5, // green
+  'Geografia Mundial': 8, // blue
+  'História do Brasil': 3, // purple
+  'História Geral': 7, // pink
+  'Vocabulário': 0, // indigo
+  'Gramática': 4, // red
+  'Biologia': 9, // olive
+  'Física e Química': 6, // brown
 };
 
 /// Stable color per topic name (same topic, same color, on every screen and run).

@@ -103,10 +103,14 @@ void main() {
     final names = [
       'Equações',
       'Geometria',
-      'Geografia',
-      'História',
-      'Inglês',
-      'Ciências',
+      'Geografia do Brasil',
+      'Geografia Mundial',
+      'História do Brasil',
+      'História Geral',
+      'Vocabulário',
+      'Gramática',
+      'Biologia',
+      'Física e Química',
     ];
     final colors = names.map(topicColor).toSet();
     expect(colors.length, names.length);

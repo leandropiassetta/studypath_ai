@@ -127,7 +127,19 @@ void main() {
       ];
       // Names chosen to hit every color of the palette.
       final names =
-          List.generate(60, (i) => 'Assunto $i') + ['Equações', 'Geometria'];
+          List.generate(60, (i) => 'Assunto $i') +
+          [
+            'Equações',
+            'Geometria',
+            'Geografia do Brasil',
+            'Geografia Mundial',
+            'História do Brasil',
+            'História Geral',
+            'Vocabulário',
+            'Gramática',
+            'Biologia',
+            'Física e Química',
+          ];
       final used = <Color>{};
       for (final surface in surfaces) {
         for (final name in names) {
@@ -140,7 +152,7 @@ void main() {
           );
         }
       }
-      expect(used.length, 6, reason: 'the check covered the whole palette');
+      expect(used.length, 10, reason: 'the check covered the whole palette');
     });
   });
 

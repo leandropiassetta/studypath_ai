@@ -75,6 +75,11 @@ export async function seed(ds: DataSource, options: SeedOptions = {}): Promise<v
       })),
       ['id'],
     );
+    // Positions are unique per quiz, so re-ordering has to start from a clean slate. Only the
+    // membership of the seeded quizzes is reset; attempts and answers are never touched.
+    await m.query('DELETE FROM quiz_questions WHERE quiz_id = ANY($1::uuid[])', [
+      SEED_QUIZZES.map((qz) => qz.id),
+    ]);
     await m.upsert(
       QuizQuestion,
       questions.flatMap((q) => {

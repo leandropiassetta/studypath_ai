@@ -41,7 +41,10 @@ describe('GET /api/v1/quizzes', () => {
     expect(math.questionCount).toBe(8);
     expect(math.topics.map((t) => t.name)).toEqual(['Equações', 'Geometria']);
     const hist = list.find((q) => q.slug === 'demo-historia')!;
-    expect(hist).toMatchObject({ questionCount: 4, topics: [{ name: 'História' }] });
+    expect(hist).toMatchObject({
+      questionCount: 8,
+      topics: [{ name: 'História do Brasil' }, { name: 'História Geral' }],
+    });
     expect(res.body).not.toMatch(/correct/i);
   });
 
@@ -56,24 +59,21 @@ describe('GET /api/v1/quizzes', () => {
     );
   });
 
-  it('each new simulado can be fetched and has 4 questions of its subject', async () => {
+  it('each new simulado can be fetched and has 8 questions, 4 per subtopic', async () => {
     const user = await registerUser(app);
-    for (const [slug, topic] of [
-      ['demo-geografia', 'Geografia'],
-      ['demo-historia', 'História'],
-      ['demo-ingles', 'Inglês'],
-      ['demo-ciencias', 'Ciências'],
-    ]) {
+    for (const slug of ['demo-geografia', 'demo-historia', 'demo-ingles', 'demo-ciencias']) {
       const res = await asUser(app, user.token).inject({
         method: 'GET',
         url: `/api/v1/quizzes/${slug}`,
       });
       expect(res.statusCode).toBe(200);
       const quiz = res.json();
-      expect(quiz.questions).toHaveLength(4);
-      expect(quiz.questions.every((q: { topic: { name: string } }) => q.topic.name === topic)).toBe(
-        true,
-      );
+      expect(quiz.questions).toHaveLength(8);
+      const names = quiz.questions.map((q: { topic: { name: string } }) => q.topic.name);
+      expect(new Set(names).size).toBe(2);
+      // The first subtopic fills positions 1-4 and the second 5-8, like math.
+      expect(new Set(names.slice(0, 4)).size).toBe(1);
+      expect(new Set(names.slice(4)).size).toBe(1);
     }
   });
 });
