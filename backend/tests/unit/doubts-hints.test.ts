@@ -314,5 +314,11 @@ describe('the hint prompt answers the student question first', () => {
     expect(HINT_SYSTEM_PROMPT).toMatch(/sem citar a alternativa correta/);
     const msg = buildHintMessage(input(1, { studentMessage: 'o que é uma equação?' }));
     expect(msg).toContain('"studentMessage":"o que é uma equação?"');
+    // The instruction sits right next to the level rule, before the data.
+    expect(msg.indexOf('responda')).toBeGreaterThan(msg.indexOf('Nível da dica'));
+    expect(msg.indexOf('responda')).toBeLessThan(msg.indexOf('<question_data>'));
+    // Without a written doubt there is nothing to answer, so the instruction is left out.
+    expect(buildHintMessage(input(1))).not.toMatch(/O aluno escreveu uma dúvida/);
+    expect(buildHintMessage(input(1, { studentMessage: '   ' }))).not.toMatch(/O aluno escreveu/);
   });
 });

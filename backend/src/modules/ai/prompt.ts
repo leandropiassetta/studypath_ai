@@ -52,8 +52,17 @@ export function buildHintMessage(input: HintInput): string {
     referenceExplanation: clip(input.referenceExplanation),
     studentMessage: input.studentMessage?.slice(0, MAX_STUDENT_MESSAGE_CHARS),
   };
+  const wrote = data.studentMessage?.trim();
+  // Next to the level rule on purpose: a general instruction in the system prompt lost to
+  // "ask a guiding question" on level 1 and the student's own question went unanswered.
+  const ownQuestion = wrote
+    ? 'O aluno escreveu uma dúvida em studentMessage. Se for uma pergunta sobre um conceito, ' +
+      'comece com UMA frase simples que a responda (definição ou ideia central), ' +
+      'sem citar a alternativa correta, e só depois siga a regra do nível.\n'
+    : '';
   return (
     `Nível da dica: ${input.level} de 3. ${LEVEL_RULES[input.level]}\n` +
+    ownQuestion +
     `<question_data>\n${JSON.stringify(data)}\n</question_data>`
   );
 }
