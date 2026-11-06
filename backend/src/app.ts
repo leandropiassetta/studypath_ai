@@ -41,6 +41,8 @@ export function buildApp({
   logger = false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({
+    // Payloads are tiny (a quiz has 8 answers); refuse anything bigger early.
+    bodyLimit: 64 * 1024,
     // Defense in depth: even if request/response logging grows, credentials never reach the log.
     logger: logger
       ? {
@@ -58,6 +60,12 @@ export function buildApp({
   });
   registerErrorHandling(app);
   registerLoopbackCors(app);
+  app.addHook('onSend', async (req, reply, payload) => {
+    void reply.header('x-content-type-options', 'nosniff');
+    // Answers, scores and recommendations are personal data: never let a cache keep them.
+    if (req.url.startsWith('/api/')) void reply.header('cache-control', 'no-store');
+    return payload;
+  });
 
   void app.register(healthRoutes(dataSource));
   void app.register(quizRoutes(new QuizService(new QuizRepository(dataSource))), {

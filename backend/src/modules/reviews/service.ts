@@ -1,4 +1,5 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
+import { assertDemoStudent } from '../../shared/errors/guards.js';
 import type { QuizRepository } from '../quizzes/repository.js';
 import { latestAnswerPerQuestion, selectReviewTopics } from '../recommendations/domain.js';
 import type { RecommendationRepository } from '../recommendations/repository.js';
@@ -16,9 +17,7 @@ export class ReviewService {
 
   /** Check order: 403 student -> 404 student/topic -> 400 topic not in review. */
   async createForTopic(studentId: string, topicId: string): Promise<ReviewQuizView> {
-    if (studentId !== this.demoStudentId) {
-      throw new AppError(403, 'FORBIDDEN', 'Estudante não autorizado');
-    }
+    assertDemoStudent(studentId, this.demoStudentId);
     if (!(await this.recommendations.studentExists(studentId))) {
       throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
     }
@@ -43,6 +42,10 @@ export class ReviewService {
       .filter((a) => a.topicId === topicId && !a.isCorrect)
       .map((a) => a.questionId);
     const selection = composeReviewSelection(unseen, await this.reviews.questionsById(wrongIds));
+
+    if (selection.questionIds.length === 0) {
+      throw new AppError(400, 'NOTHING_TO_PRACTICE', 'Não há questões para praticar neste assunto');
+    }
 
     const slug = reviewSlug(selection.questionIds);
     await this.reviews.ensureReviewQuiz(slug, `Revisão: ${topic.name}`, selection.questionIds);

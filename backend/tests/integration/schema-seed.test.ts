@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DataSource } from 'typeorm';
-import { createDataSource } from '../../src/database/data-source.js';
 import { Question, Quiz, QuizQuestion } from '../../src/database/entities/index.js';
 import { seed } from '../../src/database/seeds/seed.js';
+import { createSeededTestDb } from '../helpers/test-db.js';
 import {
   DEMO_QUIZ_ID,
   DEMO_QUIZ_SLUG,
@@ -10,18 +10,10 @@ import {
   TOPIC_EQUACOES_ID,
 } from '../../src/database/seeds/data.js';
 
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://studypath:studypath@127.0.0.1:5432/studypath_test';
-
 let ds: DataSource;
 
 beforeAll(async () => {
-  ds = createDataSource(TEST_DATABASE_URL);
-  await ds.initialize();
-  await ds.query('DROP SCHEMA public CASCADE');
-  await ds.query('CREATE SCHEMA public');
-  await ds.runMigrations();
-  await seed(ds);
+  ds = await createSeededTestDb();
 });
 
 afterAll(async () => {

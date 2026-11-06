@@ -35,21 +35,22 @@ flutter pub get
 flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:3000
 ```
 
-Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000`. A API só aceita CORS de origens `localhost` e `127.0.0.1` (necessário para o Flutter web).
+Emulador Android: use `--dart-define=API_BASE_URL=http://10.0.2.2:3000` (o emulador enxerga o `127.0.0.1` do computador como `10.0.2.2`). Requisitos validados: Android SDK (platform 36, build-tools 36.0.0, imagem `google_apis;x86_64`), JDK 21 e `flutter config --android-sdk <caminho> --jdk-dir <jdk21>`. Depois `flutter run -d <emulador> --dart-define=API_BASE_URL=http://10.0.2.2:3000`. O tráfego HTTP em texto puro só é liberado no build de debug. Dica para Mac Intel: inicie o emulador com `emulator -avd <nome> -gpu host` (a renderização por software, `-gpu swiftshader_indirect`, deixou o emulador quase sem resposta). Se ele travar com "No space left on device", reinicie com `-wipe-data`. A API só aceita CORS de origens `localhost` e `127.0.0.1` (necessário para o Flutter web).
 
 ### Variáveis de ambiente (`.env`)
 
-| Variável                    | Padrão                                 | Uso                                            |
-| --------------------------- | -------------------------------------- | ---------------------------------------------- |
-| `DATABASE_URL`              | _(obrigatória)_                        | Conexão com o PostgreSQL                       |
-| `HOST` / `PORT`             | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback)         |
-| `APP_ENV`                   | `demo`                                 | Modo demo                                      |
-| `DEMO_STUDENT_ID`           | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                    |
-| `AI_MODE`                   | `disabled`                             | `disabled`, `mock` ou `real` (explicações)     |
-| `AI_TIMEOUT_MS`             | `8000`                                 | Timeout da chamada à LLM                       |
-| `LLM_PROVIDER`              | `anthropic`                            | `anthropic` ou `openai` (só em `AI_MODE=real`) |
-| `LLM_API_KEY` / `LLM_MODEL` | _(só em `AI_MODE=real`)_               | Chave e modelo; nunca versione a chave         |
-| `API_BASE_URL`              | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`                   |
+| Variável                    | Padrão                                 | Uso                                                                                                                |
+| --------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`              | _(obrigatória)_                        | Conexão com o PostgreSQL                                                                                           |
+| `HOST` / `PORT`             | `127.0.0.1` / `3000`                   | Endereço da API (mantenha em loopback)                                                                             |
+| `ALLOW_NON_LOOPBACK_HOST`   | _(não definida)_                       | `true` libera `HOST` fora do loopback; sem isso a API recusa iniciar em `0.0.0.0`/IP de rede (não há autenticação) |
+| `APP_ENV`                   | `demo`                                 | Modo demo                                                                                                          |
+| `DEMO_STUDENT_ID`           | `55555555-5555-4555-8555-555555555555` | Único aluno aceito pela API                                                                                        |
+| `AI_MODE`                   | `disabled`                             | `disabled`, `mock` ou `real` (explicações)                                                                         |
+| `AI_TIMEOUT_MS`             | `8000`                                 | Timeout da chamada à LLM                                                                                           |
+| `LLM_PROVIDER`              | `anthropic`                            | `anthropic` ou `openai` (só em `AI_MODE=real`)                                                                     |
+| `LLM_API_KEY` / `LLM_MODEL` | _(só em `AI_MODE=real`)_               | Chave e modelo; nunca versione a chave                                                                             |
+| `API_BASE_URL`              | `http://127.0.0.1:3000`                | Flutter, via `--dart-define`                                                                                       |
 
 ## Dados do seed (fictícios)
 
@@ -85,6 +86,15 @@ Erros usam `{"error":{"code","message","details"}}`; erros 500 não expõem deta
 8. Decisões a explicar: correção determinística, transação, idempotência e IA restrita à explicação, com fallback.
 
 Teste de resiliência no app: pare a API (`Ctrl+C`), tente enviar e veja o erro com "Tentar enviar novamente"; suba a API de novo e reenvie. O reenvio usa o mesmo `requestId`, então não duplica a tentativa.
+
+## Segurança (resumo da revisão)
+
+- Todas as consultas SQL são parametrizadas; entradas validadas por schema (corpo máximo de 64 KB).
+- Sem autenticação real: a API só atende o aluno demo, escuta em `127.0.0.1` e recusa outro `HOST` sem `ALLOW_NON_LOOPBACK_HOST=true`. CORS só para origens `localhost`/`127.0.0.1`.
+- Respostas da API com `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
+- Chave da LLM só em `.env` (ignorado pelo git); o hook de pré-commit (`scripts/check-secrets.sh`) bloqueia credenciais; os logs redigem `authorization`, `x-api-key` e cookies.
+- Os testes recusam rodar `DROP SCHEMA` em qualquer banco que não seja local e terminado em `_test`.
+- `npm audit --omit=dev`: 0 vulnerabilidades. O `npm audit` completo aponta 10 avisos moderados só na cadeia do ESLint (ferramenta de desenvolvimento); a correção automática exigiria rebaixar o ESLint e quebraria o lint, então foi deliberadamente não aplicada.
 
 ## Qualidade
 

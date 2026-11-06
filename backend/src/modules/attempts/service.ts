@@ -1,4 +1,5 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
+import { assertDemoStudent } from '../../shared/errors/guards.js';
 import { canonicalPayloadHash, gradeAttempt, validateAnswers } from './domain.js';
 import { DuplicateRequestError, type AttemptRepository, type StoredAttempt } from './repository.js';
 import type { AttemptResult, CreateAttemptInput } from './schemas.js';
@@ -21,9 +22,7 @@ export class AttemptService {
    * race and is resolved by re-reading the winning attempt.
    */
   async submit(input: CreateAttemptInput): Promise<SubmitOutcome> {
-    if (input.studentId !== this.demoStudentId) {
-      throw new AppError(403, 'FORBIDDEN', 'Estudante não autorizado');
-    }
+    assertDemoStudent(input.studentId, this.demoStudentId);
     if (!(await this.attempts.studentExists(input.studentId))) {
       throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
     }

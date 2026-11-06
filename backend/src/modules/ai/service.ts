@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { AppError, notFound } from '../../shared/errors/app-error.js';
+import { assertDemoStudent } from '../../shared/errors/guards.js';
 import type { ExplanationInput, ExplanationProvider } from './providers/types.js';
 import type { ExplanationRepository } from './repository.js';
 import type { ExplanationView } from './schemas.js';
@@ -64,9 +65,7 @@ export class ExplanationService {
       throw notFound('ATTEMPT_NOT_FOUND', 'Tentativa não encontrada');
 
     const studentId = lookup.found === 'answer' ? lookup.context.studentId : lookup.studentId;
-    if (studentId !== this.demoStudentId) {
-      throw new AppError(403, 'FORBIDDEN', 'Estudante não autorizado');
-    }
+    assertDemoStudent(studentId, this.demoStudentId);
     if (lookup.found === 'no-answer') {
       throw notFound('QUESTION_NOT_FOUND', 'Questão não encontrada nesta tentativa');
     }

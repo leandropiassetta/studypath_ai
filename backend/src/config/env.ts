@@ -28,6 +28,9 @@ export type Env = Static<typeof EnvSchema>;
 const numberOrUndefined = (v: string | undefined): number | undefined =>
   v === undefined || v === '' ? undefined : Number(v);
 
+const isLoopbackHost = (host: string): boolean =>
+  host === 'localhost' || host === '::1' || /^127(\.\d{1,3}){3}$/.test(host);
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const raw = {
     APP_ENV: source.APP_ENV,
@@ -55,6 +58,12 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (withDefaults.AI_MODE === 'real' && (!withDefaults.LLM_API_KEY || !withDefaults.LLM_MODEL)) {
     throw new Error('Invalid environment: AI_MODE=real requires LLM_API_KEY and LLM_MODEL');
+  }
+  if (!isLoopbackHost(withDefaults.HOST) && source.ALLOW_NON_LOOPBACK_HOST !== 'true') {
+    throw new Error(
+      'Invalid environment: HOST is not a loopback address. This demo API has no real ' +
+        'authentication; set ALLOW_NON_LOOPBACK_HOST=true only if you accept exposing it.',
+    );
   }
   return withDefaults;
 }

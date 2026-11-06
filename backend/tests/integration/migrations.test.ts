@@ -1,18 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DataSource } from 'typeorm';
-import { createDataSource } from '../../src/database/data-source.js';
-
-// Isolated database created by docker/init-test-db.sql. Never points at the dev DB.
-const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://studypath:studypath@127.0.0.1:5432/studypath_test';
+import { createEmptyTestDb } from '../helpers/test-db.js';
 
 let ds: DataSource;
 
 beforeAll(async () => {
-  ds = createDataSource(TEST_DATABASE_URL);
-  await ds.initialize();
-  await ds.query('DROP SCHEMA public CASCADE');
-  await ds.query('CREATE SCHEMA public');
+  ds = await createEmptyTestDb();
 });
 
 afterAll(async () => {

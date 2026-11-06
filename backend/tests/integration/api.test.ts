@@ -73,6 +73,23 @@ describe('GET /api/v1/quizzes/:slug', () => {
   });
 });
 
+describe('response hardening', () => {
+  it('sends nosniff everywhere and no-store on API responses', async () => {
+    const api = await app.inject({ method: 'GET', url: '/api/v1/quizzes/demo-matematica' });
+    expect(api.headers['x-content-type-options']).toBe('nosniff');
+    expect(api.headers['cache-control']).toBe('no-store');
+    const health = await app.inject({ method: 'GET', url: '/health' });
+    expect(health.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('rejects oversized request bodies with a client error', async () => {
+    const huge = { requestId: 'x'.repeat(100_000) };
+    const res = await app.inject({ method: 'POST', url: '/api/v1/attempts', payload: huge });
+    expect(res.statusCode).toBe(413);
+    expect(res.json().error.code).toBe('INVALID_REQUEST');
+  });
+});
+
 describe('error handling', () => {
   it('uses the standard envelope for unknown routes', async () => {
     const res = await app.inject({ method: 'GET', url: '/nada' });

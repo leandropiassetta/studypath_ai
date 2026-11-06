@@ -122,4 +122,42 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.code, 'code', 'TIMEOUT')),
     );
   });
+
+  test(
+    'builds clean URLs: tolerates a trailing slash and encodes the slug',
+    () async {
+      final seen = <String>[];
+      final api = ApiClient(
+        baseUrl: 'http://api.test//',
+        studentId: 's',
+        client: MockClient((req) async {
+          seen.add(req.url.toString());
+          return http.Response(
+            jsonEncode({
+              'error': {
+                'code': 'QUIZ_NOT_FOUND',
+                'message': 'nope',
+                'details': <Object>[],
+              },
+            }),
+            404,
+          );
+        }),
+      );
+
+      await expectLater(
+        api.fetchQuiz('demo matematica/x'),
+        throwsA(isA<ApiException>()),
+      );
+      await expectLater(
+        api.fetchRecommendations(),
+        throwsA(isA<ApiException>()),
+      );
+
+      expect(seen, [
+        'http://api.test/api/v1/quizzes/demo%20matematica%2Fx',
+        'http://api.test/api/v1/students/s/recommendations',
+      ]);
+    },
+  );
 }

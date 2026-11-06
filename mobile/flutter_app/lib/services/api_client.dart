@@ -33,10 +33,14 @@ class ApiClient {
   final Duration timeout;
   final http.Client _client;
 
-  Uri _uri(String path) => Uri.parse('$baseUrl/api/v1$path');
+  /// Tolerates a trailing slash in API_BASE_URL (".../" would otherwise give "//api/v1").
+  Uri _uri(String path) =>
+      Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1$path');
 
   Future<Quiz> fetchQuiz(String slug) async {
-    final json = await _send(() => _client.get(_uri('/quizzes/$slug')));
+    final json = await _send(
+      () => _client.get(_uri('/quizzes/${Uri.encodeComponent(slug)}')),
+    );
     return _parse(json, Quiz.fromJson);
   }
 

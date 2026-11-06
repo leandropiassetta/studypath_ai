@@ -23,7 +23,15 @@ const shutdown = async (): Promise<void> => {
   await dataSource.destroy();
 };
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => void shutdown().then(() => process.exit(0)));
+  process.once(signal, () => {
+    shutdown().then(
+      () => process.exit(0),
+      (err: unknown) => {
+        app.log.error(err);
+        process.exit(1);
+      },
+    );
+  });
 }
 
 try {

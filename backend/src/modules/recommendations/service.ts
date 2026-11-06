@@ -1,4 +1,5 @@
-import { AppError, notFound } from '../../shared/errors/app-error.js';
+import { notFound } from '../../shared/errors/app-error.js';
+import { assertDemoStudent } from '../../shared/errors/guards.js';
 import {
   RECENT_ATTEMPTS_WINDOW,
   buildProgress,
@@ -20,9 +21,7 @@ export class RecommendationService {
   ) {}
 
   async getFor(studentId: string): Promise<RecommendationsView> {
-    if (studentId !== this.demoStudentId) {
-      throw new AppError(403, 'FORBIDDEN', 'Estudante não autorizado');
-    }
+    assertDemoStudent(studentId, this.demoStudentId);
     if (!(await this.repo.studentExists(studentId))) {
       throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
     }

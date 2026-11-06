@@ -51,6 +51,21 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ DATABASE_URL, LLM_PROVIDER: 'other' })).toThrow(/LLM_PROVIDER/);
   });
 
+  it('refuses a non-loopback HOST unless explicitly allowed (demo API has no auth)', () => {
+    for (const host of ['127.0.0.1', '127.0.0.5', 'localhost', '::1']) {
+      expect(loadEnv({ DATABASE_URL, HOST: host }).HOST).toBe(host);
+    }
+    for (const host of ['0.0.0.0', '192.168.0.10', '10.0.0.4', 'example.com']) {
+      expect(() => loadEnv({ DATABASE_URL, HOST: host })).toThrow(/loopback/);
+    }
+    expect(loadEnv({ DATABASE_URL, HOST: '0.0.0.0', ALLOW_NON_LOOPBACK_HOST: 'true' }).HOST).toBe(
+      '0.0.0.0',
+    );
+    expect(() =>
+      loadEnv({ DATABASE_URL, HOST: '0.0.0.0', ALLOW_NON_LOOPBACK_HOST: 'yes' }),
+    ).toThrow(/loopback/);
+  });
+
   it('requires a postgres DATABASE_URL', () => {
     expect(() => loadEnv({})).toThrow(/DATABASE_URL/);
     expect(() => loadEnv({ DATABASE_URL: 'mysql://x' })).toThrow(/DATABASE_URL/);
