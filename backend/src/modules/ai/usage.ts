@@ -3,6 +3,11 @@
 export interface UsageLimits {
   perMinute: number;
   perDay: number;
+  /**
+   * Optional cap on ALL students together per 24 h. A public deployment shares one provider key
+   * (and its free quota) among everyone, so a flood of new accounts must not be able to use it up.
+   */
+  globalPerDay?: number;
 }
 
 export const DEFAULT_USAGE_LIMITS: UsageLimits = { perMinute: 6, perDay: 50 };
@@ -13,6 +18,8 @@ const DAY_MS = 24 * 60 * 60_000;
 export type LimitVerdict = 'ok' | 'minute' | 'day';
 
 /** Sliding-window counter per key (a student). Only calls that really reach the LLM count. */
+const GLOBAL_KEY = '\u0000global';
+
 export class UsageLimiter {
   private readonly calls = new Map<string, number[]>();
 
@@ -33,6 +40,17 @@ export class UsageLimiter {
     if (recent.filter((at) => t - at < MINUTE_MS).length >= this.limits.perMinute) {
       this.calls.set(key, recent);
       return 'minute';
+    }
+    const { globalPerDay } = this.limits;
+    if (globalPerDay !== undefined) {
+      const all = (this.calls.get(GLOBAL_KEY) ?? []).filter((at) => t - at < DAY_MS);
+      if (all.length >= globalPerDay) {
+        this.calls.set(GLOBAL_KEY, all);
+        this.calls.set(key, recent);
+        return 'day'; // refused: nothing is recorded for the student either
+      }
+      all.push(t);
+      this.calls.set(GLOBAL_KEY, all);
     }
     recent.push(t);
     this.calls.set(key, recent);

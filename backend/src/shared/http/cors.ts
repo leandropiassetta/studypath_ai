@@ -1,13 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 
-// Loopback origins only (e.g. Flutter web served by `flutter run -d chrome`).
-// No wildcard: the demo API must never be callable from arbitrary sites.
+// Loopback origins are always allowed (e.g. Flutter web served by `flutter run -d chrome`).
+// Anything else must be listed explicitly: there is no wildcard, so the API is never callable
+// from arbitrary sites, even when it is deployed publicly.
 const LOOPBACK_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
-export function registerLoopbackCors(app: FastifyInstance): void {
+export function registerCors(app: FastifyInstance, allowedOrigins: readonly string[] = []): void {
+  const allowed = new Set(allowedOrigins);
   app.addHook('onRequest', async (req, reply) => {
     const origin = req.headers.origin;
-    if (origin === undefined || !LOOPBACK_ORIGIN.test(origin)) return;
+    if (origin === undefined || !(LOOPBACK_ORIGIN.test(origin) || allowed.has(origin))) return;
 
     void reply.header('access-control-allow-origin', origin);
     void reply.header('vary', 'Origin');

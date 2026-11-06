@@ -181,3 +181,34 @@ describe('ExplanationService cost guards', () => {
     });
   });
 });
+
+describe('UsageLimiter global daily cap', () => {
+  it('stops everyone together once the shared quota is used, without charging the student', () => {
+    let t = 0;
+    const limiter = new UsageLimiter({ perMinute: 100, perDay: 100, globalPerDay: 3 }, () => t);
+    expect(limiter.tryAcquire('ana')).toBe('ok');
+    expect(limiter.tryAcquire('bia')).toBe('ok');
+    expect(limiter.tryAcquire('caio')).toBe('ok');
+    // A fourth student is refused although they have used nothing themselves.
+    expect(limiter.tryAcquire('duda')).toBe('day');
+    expect(limiter.tryAcquire('ana')).toBe('day');
+    // The window slides: after 24 h everyone can use the AI again.
+    t += DAY + 1;
+    expect(limiter.tryAcquire('duda')).toBe('ok');
+  });
+
+  it('a refused call does not count against the global quota or the student', () => {
+    let t = 0;
+    const limiter = new UsageLimiter({ perMinute: 1, perDay: 100, globalPerDay: 2 }, () => t);
+    expect(limiter.tryAcquire('ana')).toBe('ok');
+    expect(limiter.tryAcquire('ana')).toBe('minute'); // refused by her own limit: global untouched
+    expect(limiter.tryAcquire('bia')).toBe('ok'); // the global quota still had room
+    t += MIN + 1;
+    expect(limiter.tryAcquire('ana')).toBe('day'); // now the global quota (2) is really spent
+  });
+
+  it('is off unless configured', () => {
+    const limiter = new UsageLimiter({ perMinute: 1000, perDay: 1000 });
+    for (let i = 0; i < 200; i++) expect(limiter.tryAcquire(`s${i}`)).toBe('ok');
+  });
+});

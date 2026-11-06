@@ -152,6 +152,10 @@ describe('.env.example', () => {
       'TEACHER_PASSWORD',
       'TEACHER_NAME',
       'DEMO_STUDENT_ID',
+      'ALLOW_NON_LOOPBACK_HOST',
+      'ALLOWED_ORIGINS',
+      'TRUST_PROXY',
+      'AI_MAX_CALLS_GLOBAL_PER_DAY',
     ];
     expect(all.filter((name) => !documented.has(name))).toEqual([]);
   });
@@ -166,5 +170,38 @@ describe('.env.example', () => {
       expect(active[name] ?? '', name).toBe('');
     }
     expect(text).not.toMatch(/gsk_[A-Za-z0-9]{10,}|sk-[A-Za-z0-9_-]{20,}/);
+  });
+});
+
+describe('loadEnv: deployment settings', () => {
+  it('have safe defaults: no extra origins, no proxy, no global cap', () => {
+    const env = loadEnv({ DATABASE_URL });
+    expect(env.ALLOWED_ORIGINS).toEqual([]);
+    expect(env.TRUST_PROXY).toBe(0);
+    expect(env.AI_MAX_CALLS_GLOBAL_PER_DAY).toBeUndefined();
+  });
+
+  it('parses a comma-separated origin list, trimming spaces and trailing slashes', () => {
+    const env = loadEnv({
+      DATABASE_URL,
+      ALLOWED_ORIGINS: ' https://a.github.io , https://b.example.com:8443/ ,, ',
+    });
+    expect(env.ALLOWED_ORIGINS).toEqual(['https://a.github.io', 'https://b.example.com:8443']);
+  });
+
+  it('rejects wildcards, paths and other schemes in the origin list', () => {
+    for (const bad of ['*', 'https://a.dev/app', 'ftp://a.dev', 'a.dev', 'https://*.a.dev']) {
+      expect(() => loadEnv({ DATABASE_URL, ALLOWED_ORIGINS: bad }), bad).toThrow(/ALLOWED_ORIGINS/);
+    }
+  });
+
+  it('validates the proxy hops and the global AI cap', () => {
+    expect(loadEnv({ DATABASE_URL, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+    expect(() => loadEnv({ DATABASE_URL, TRUST_PROXY: '9' })).toThrow(/TRUST_PROXY/);
+    expect(() => loadEnv({ DATABASE_URL, TRUST_PROXY: '-1' })).toThrow(/TRUST_PROXY/);
+    expect(
+      loadEnv({ DATABASE_URL, AI_MAX_CALLS_GLOBAL_PER_DAY: '300' }).AI_MAX_CALLS_GLOBAL_PER_DAY,
+    ).toBe(300);
+    expect(() => loadEnv({ DATABASE_URL, AI_MAX_CALLS_GLOBAL_PER_DAY: '0' })).toThrow(/GLOBAL/);
   });
 });

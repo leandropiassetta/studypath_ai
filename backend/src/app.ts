@@ -26,7 +26,7 @@ import { QuizRepository } from './modules/quizzes/repository.js';
 import { quizRoutes } from './modules/quizzes/routes.js';
 import { QuizService } from './modules/quizzes/service.js';
 import { createRequireAuth, requireTeacher } from './shared/http/auth.js';
-import { registerLoopbackCors } from './shared/http/cors.js';
+import { registerCors } from './shared/http/cors.js';
 import { registerErrorHandling } from './shared/errors/error-handler.js';
 
 export interface AppOptions {
@@ -36,6 +36,10 @@ export interface AppOptions {
   aiTimeoutMs?: number;
   /** Per-student cost guards for the LLM endpoint (defaults: 6 per minute, 50 per 24 h). */
   aiLimits?: UsageLimits;
+  /** Extra browser origins CORS accepts besides localhost (the deployed app's address). */
+  allowedOrigins?: string[];
+  /** Number of reverse proxies in front of the API (0 = none). */
+  trustProxy?: number;
   /**
    * One shared AI budget per student (explanations + hints + the background analysis). When
    * omitted it is built from [aiLimits]. Pass the same instance to the job worker.
@@ -59,11 +63,16 @@ export function buildApp({
   aiTimeoutMs = 8000,
   aiLimits,
   aiUsage,
+  allowedOrigins = [],
+  trustProxy = 0,
   auth: authOptions = {},
   doubtJobs,
   logger = false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({
+    // Behind a reverse proxy (Render, nginx...) the client IP is in X-Forwarded-For. Trust exactly
+    // this many hops: without it every user looks like the proxy and the per-IP limits hit them all.
+    trustProxy: trustProxy > 0 ? (_address: string, hop: number) => hop < trustProxy : false,
     // Payloads are tiny (a quiz has 8 answers); refuse anything bigger early.
     bodyLimit: 64 * 1024,
     // Defense in depth: even if request/response logging grows, credentials never reach the log.
@@ -91,7 +100,7 @@ export function buildApp({
     if (body === '') return done(null, undefined);
     parseJson(req, body as string, done);
   });
-  registerLoopbackCors(app);
+  registerCors(app, allowedOrigins);
   app.addHook('onSend', async (req, reply, payload) => {
     void reply.header('x-content-type-options', 'nosniff');
     // Answers, scores and recommendations are personal data: never let a cache keep them.

@@ -19,6 +19,7 @@ const explanationProvider = createExplanationProvider(env);
 const aiUsage = new UsageLimiter({
   perMinute: env.AI_MAX_CALLS_PER_MINUTE,
   perDay: env.AI_MAX_CALLS_PER_DAY,
+  globalPerDay: env.AI_MAX_CALLS_GLOBAL_PER_DAY,
 });
 const queue = env.REDIS_URL
   ? createDoubtQueue({
@@ -44,6 +45,8 @@ const app = buildApp({
     teacherInviteCode: env.TEACHER_INVITE_CODE,
   },
   aiUsage,
+  allowedOrigins: env.ALLOWED_ORIGINS,
+  trustProxy: env.TRUST_PROXY,
   logger: true,
 });
 

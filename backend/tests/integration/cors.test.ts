@@ -69,3 +69,53 @@ describe('CORS (loopback only)', () => {
     }
   });
 });
+
+describe('CORS for a deployed app', () => {
+  const PAGES = 'https://usuario.github.io';
+  let deployed: FastifyInstance;
+  beforeAll(async () => {
+    deployed = buildTestApp({ dataSource: ds, allowedOrigins: [PAGES] });
+    await deployed.ready();
+  });
+  afterAll(async () => {
+    await deployed.close();
+  });
+
+  const preflight = (origin: string) =>
+    deployed.inject({
+      method: 'OPTIONS',
+      url: '/api/v1/auth/login',
+      headers: { origin, 'access-control-request-method': 'POST' },
+    });
+
+  it('allows exactly the listed origin, and localhost keeps working', async () => {
+    expect((await preflight(PAGES)).headers['access-control-allow-origin']).toBe(PAGES);
+    expect((await preflight('http://localhost:5555')).headers['access-control-allow-origin']).toBe(
+      'http://localhost:5555',
+    );
+  });
+
+  it('refuses look-alikes: another user, another scheme, a subdomain, a path, a wildcard', async () => {
+    for (const origin of [
+      'https://outro.github.io',
+      'http://usuario.github.io',
+      'https://usuario.github.io.evil.example',
+      'https://evil.usuario.github.io',
+      `${PAGES}/studypath_ai`,
+      '*',
+      'null',
+    ]) {
+      const res = await preflight(origin);
+      expect(res.headers['access-control-allow-origin'], origin).toBeUndefined();
+    }
+  });
+
+  it('the default app (no list) still refuses the same address', async () => {
+    const res = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/v1/auth/login',
+      headers: { origin: PAGES, 'access-control-request-method': 'POST' },
+    });
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+});
