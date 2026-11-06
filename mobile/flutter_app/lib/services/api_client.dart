@@ -8,6 +8,7 @@ import '../models/doubt.dart';
 import '../models/auth_session.dart';
 import '../models/explanation.dart';
 import '../models/quiz.dart';
+import '../models/quiz_summary.dart';
 import '../models/recommendations.dart';
 
 class ApiException implements Exception {
@@ -106,6 +107,14 @@ class ApiClient {
   /// Tolerates a trailing slash in API_BASE_URL (".../" would otherwise give "//api/v1").
   Uri _uri(String path) =>
       Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1$path');
+
+  /// The simulados available to choose from (one per subject).
+  Future<List<QuizSummary>> fetchQuizzes() async {
+    final json = await _sendList(
+      () => _client.get(_uri('/quizzes'), headers: _headers()),
+    );
+    return json.map((q) => _parse(q, QuizSummary.fromJson)).toList();
+  }
 
   Future<Quiz> fetchQuiz(String slug) async {
     final json = await _send(
@@ -274,14 +283,26 @@ class ApiClient {
     return _parse(json, Recommendations.fromJson);
   }
 
-  /// Like [_send] for endpoints whose body is a JSON array (the teacher queue).
+  /// Like [_send] for endpoints whose body is a JSON array (the teacher queue, the quiz list).
+  /// Anything else in a 2xx body is a [ApiException], never an unhandled type error.
   Future<List<Map<String, dynamic>>> _sendList(
     Future<http.Response> Function() request,
   ) async {
+    var malformed = false;
     final wrapped = await _send(() async {
       final response = await request();
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        Object? decoded;
+        try {
+          decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        } catch (_) {
+          decoded = null;
+        }
+        if (decoded is! List ||
+            decoded.any((e) => e is! Map<String, dynamic>)) {
+          malformed = true;
+          decoded = const <Object>[];
+        }
         return http.Response(
           jsonEncode({'items': decoded}),
           response.statusCode,
@@ -290,6 +311,12 @@ class ApiClient {
       }
       return response;
     });
+    if (malformed) {
+      throw const ApiException(
+        'Resposta inesperada da API.',
+        code: 'BAD_RESPONSE',
+      );
+    }
     return (wrapped['items'] as List<dynamic>).cast<Map<String, dynamic>>();
   }
 

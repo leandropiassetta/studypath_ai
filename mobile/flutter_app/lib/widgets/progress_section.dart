@@ -58,7 +58,7 @@ class ProgressSection extends StatelessWidget {
               ),
             const SizedBox(height: 8),
             Text(
-              'Da mais antiga para a mais recente (só simulados completos). Eles usam as mesmas '
+              'Da mais antiga para a mais recente (só simulados completos do mesmo assunto). Eles usam as mesmas '
               'questões: a evolução mostra desempenho, não prova aprendizado.',
               style: theme.textTheme.bodySmall,
             ),

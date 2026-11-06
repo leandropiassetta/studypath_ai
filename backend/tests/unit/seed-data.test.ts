@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   TOPIC_EQUACOES_ID,
   TOPIC_GEOMETRIA_ID,
+  SEED_QUIZZES,
+  SEED_TOPICS,
   buildSeedQuestions,
   validateSeedQuestion,
   type SeedQuestion,
@@ -15,14 +17,49 @@ describe('seed data', () => {
     expect(questions.flatMap(validateSeedQuestion)).toEqual([]);
   });
 
-  it('has 8 quiz questions (4 per topic, positions 1-8) and 8 extras per topic', () => {
-    const inQuiz = questions.filter((q) => q.quizPosition !== null);
-    expect(inQuiz.map((q) => q.quizPosition).sort()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  it('has one simulado per subject, each with ordered positions, and extras for review', () => {
+    const slugs = SEED_QUIZZES.map((q) => q.slug);
+    expect(slugs).toEqual([
+      'demo-matematica',
+      'demo-geografia',
+      'demo-historia',
+      'demo-ingles',
+      'demo-ciencias',
+    ]);
+    expect(new Set(SEED_QUIZZES.map((q) => q.id)).size).toBe(slugs.length);
+
+    const math = questions.filter((q) => q.quizSlug === 'demo-matematica');
+    expect(math.map((q) => q.quizPosition).sort()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     for (const topic of [TOPIC_EQUACOES_ID, TOPIC_GEOMETRIA_ID]) {
-      expect(inQuiz.filter((q) => q.topicId === topic)).toHaveLength(4);
+      expect(math.filter((q) => q.topicId === topic)).toHaveLength(4);
       expect(questions.filter((q) => q.topicId === topic && q.quizPosition === null)).toHaveLength(
         8,
       );
+    }
+    for (const slug of slugs.slice(1)) {
+      const own = questions.filter((q) => q.quizSlug === slug);
+      expect(own.map((q) => q.quizPosition).sort()).toEqual([1, 2, 3, 4]);
+      const topicId = own[0]!.topicId;
+      expect(own.every((q) => q.topicId === topicId)).toBe(true);
+      // Enough unseen questions for "Praticar este assunto" after a quiz.
+      expect(
+        questions.filter((q) => q.topicId === topicId && q.quizPosition === null),
+      ).toHaveLength(4);
+    }
+    expect(SEED_TOPICS.map((t) => t.name)).toEqual([
+      'Equações',
+      'Geometria',
+      'Geografia',
+      'História',
+      'Inglês',
+      'Ciências',
+    ]);
+  });
+
+  it('explanations of the non-math subjects follow "cue: fact" (the cue is the level 2 hint)', () => {
+    const math = new Set([TOPIC_EQUACOES_ID, TOPIC_GEOMETRIA_ID]);
+    for (const q of questions.filter((x) => !math.has(x.topicId))) {
+      expect(q.referenceExplanation.indexOf(':'), q.statement).toBeGreaterThan(10);
     }
   });
 

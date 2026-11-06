@@ -60,7 +60,7 @@ describe('referenceHint (deterministic fallback)', () => {
   it('escalates from a nudge to a method cue to the full solution', () => {
     expect(referenceHint(input(1), 1)).toMatch(/Releia o enunciado/);
     expect(referenceHint(input(2), 2)).toBe(
-      'Dica de método: Subtraia 2 dos dois lados. Tente seguir esse passo antes de calcular o resto.',
+      'Dica: Subtraia 2 dos dois lados. Use essa pista antes de escolher a alternativa.',
     );
     const full = referenceHint(input(3), 3);
     expect(full).toContain('x = 5 - 2 = 3');
@@ -110,7 +110,7 @@ describe('hint prompt', () => {
   it('states the rule of each level next to the data and fences the student message as data', () => {
     expect(buildHintMessage(input(1))).toMatch(/Nível da dica: 1 de 3.*NÃO resolva/s);
     expect(buildHintMessage(input(2))).toMatch(/Nível da dica: 2 de 3.*PRÓXIMO passo/s);
-    expect(buildHintMessage(input(3))).toMatch(/Nível da dica: 3 de 3.*Resolva passo a passo/s);
+    expect(buildHintMessage(input(3))).toMatch(/Nível da dica: 3 de 3.*passo a passo/s);
     const msg = buildHintMessage(
       input(1, { studentMessage: 'x'.repeat(MAX_STUDENT_MESSAGE_CHARS * 2) }),
     );
@@ -176,7 +176,7 @@ describe('providers', () => {
       const body = String(init.body);
       expect(body).not.toContain('sk-test-secret');
       expect(body).toContain('Nível da dica: 2 de 3');
-      expect(body).toContain('tutor de matemática que ajuda um aluno');
+      expect(body).toContain('tutor escolar');
     }
   });
 });
@@ -267,5 +267,42 @@ describe('OpenAI-compatible provider error handling', () => {
     expect((err as Error).message).toBe('LLM request failed with status 401 (invalid_api_key)');
     expect((err as Error).message).not.toContain('sk-test-secret');
     expect(calls()).toBe(1);
+  });
+});
+
+describe('leaksAnswer for non-math subjects', () => {
+  const geo = (overrides: Partial<HintInput> = {}): HintInput => ({
+    statement: 'Qual é a capital do Brasil?',
+    options: [
+      { key: 'A', text: 'Rio de Janeiro' },
+      { key: 'B', text: 'Brasília' },
+      { key: 'C', text: 'Salvador' },
+    ],
+    selectedOption: 'A',
+    correctOption: 'B',
+    referenceExplanation: 'Pense na sede do governo federal: a capital é Brasília.',
+    level: 1,
+    ...overrides,
+  });
+
+  it('detects the answer given as a word, in any letter case', () => {
+    expect(leaksAnswer('A capital é Brasília, claro.', geo())).toBe(true);
+    expect(leaksAnswer('pense em brasília', geo())).toBe(true);
+  });
+
+  it('allows clues that do not say it, and mentions of the wrong option', () => {
+    expect(leaksAnswer('Pense na cidade onde fica o governo federal.', geo())).toBe(false);
+    expect(leaksAnswer('Rio de Janeiro já foi capital, mas não é mais.', geo())).toBe(false);
+  });
+
+  it('does not flag a word the question itself already contains', () => {
+    const input = geo({
+      statement: 'Em qual país fica Brasília?',
+      options: [
+        { key: 'A', text: 'Chile' },
+        { key: 'B', text: 'Brasília' },
+      ],
+    });
+    expect(leaksAnswer('Brasília é uma cidade planejada.', input)).toBe(false);
   });
 });

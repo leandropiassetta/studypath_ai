@@ -17,8 +17,8 @@ Antes de repetir o ensaio: `npm run demo:reset`.
 
 ## Roteiro
 
-1. **Aluna** entra e faz o simulado `demo-matematica`, errando de propósito 2–3 questões. _Fala:_ correção e prioridade são determinísticas, sem IA.
-2. Resultado: evolução (25% → 50% → agora) e recomendações por tema (prioridade ALTA/BAIXA).
+1. **Aluna** entra, escolhe um assunto (Matemática, Geografia, História, Inglês ou Ciências) e faz o simulado, errando de propósito 2–3 questões. _Fala:_ correção e prioridade são determinísticas, sem IA. Para a evolução 25% → 50% já aparecer, use **Matemática** (é o que o `demo:reset` prepara).
+2. Resultado: evolução (25% → 50% → agora, sempre comparando o mesmo simulado) e recomendações por tema, que misturam todos os assuntos (prioridade ALTA/BAIXA).
 3. Numa questão errada, **Tirar dúvida** → escrever uma mensagem curta → **pedir dica** 3 vezes. _Fala:_ nível 1 empurra, nível 2 dá o método, nível 3 resolve; o servidor controla o nível e um detector barra dica que entrega a resposta antes da hora.
 4. **Chamar professor**: aparece "fila, resposta em até ~14 min".
 5. **Aba da professora**: fila (só o primeiro nome da aluna) → abrir → responder.

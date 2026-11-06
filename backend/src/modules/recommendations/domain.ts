@@ -35,6 +35,8 @@ export interface AttemptSummary {
   submittedAt: Date;
   scorePct: number;
   kind: 'standard' | 'review';
+  /** Which quiz it was; progress only compares attempts of the same quiz. */
+  quizId?: string;
 }
 
 export interface ProgressTopic {
@@ -110,6 +112,20 @@ export function latestAnswerPerQuestion(
     }
   }
   return [...latest.values()];
+}
+
+/**
+ * The trajectory shown to the student: the recent full quizzes of the SAME quiz as the newest one.
+ * Scores of different simulados (math vs. history) are not comparable, so they are never mixed.
+ */
+export function progressAttempts(
+  attemptsNewestFirst: AttemptSummary[],
+  window: number,
+): AttemptSummary[] {
+  const standard = attemptsNewestFirst.filter((a) => a.kind === 'standard');
+  const latest = standard[0];
+  if (!latest) return [];
+  return standard.filter((a) => a.quizId === latest.quizId).slice(0, window);
 }
 
 /** Per-attempt performance by topic, oldest first, so the UI can show the trajectory. */

@@ -2,6 +2,7 @@ import { assertSameStudent } from '../../shared/errors/guards.js';
 import {
   RECENT_ATTEMPTS_WINDOW,
   buildProgress,
+  progressAttempts,
   latestAnswerPerQuestion,
   overallStatus,
   selectReviewTopics,
@@ -38,7 +39,7 @@ export class RecommendationService {
       evaluatedAttempts: history.attempts.length,
       progress: buildProgress(
         history.answers,
-        history.attempts.filter((a) => a.kind === 'standard').slice(0, RECENT_ATTEMPTS_WINDOW),
+        progressAttempts(history.attempts, RECENT_ATTEMPTS_WINDOW),
       ).map((p) => ({
         ...p,
         submittedAt: p.submittedAt.toISOString(),

@@ -142,10 +142,15 @@ void main() {
 
       await tester.pumpWidget(
         loggedInApp(
-          ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock),
+          ApiClient(
+            baseUrl: 'http://api.test',
+            studentId: 's',
+            client: withQuizList(mock),
+          ),
         ),
       );
       await tester.pumpAndSettle();
+      await openQuizFromPicker(tester);
 
       expect(find.text('Simulado de Matemática'), findsOneWidget);
       expect(find.textContaining('Quanto é x se x + 2 = 5?'), findsOneWidget);
@@ -205,10 +210,15 @@ void main() {
     });
     await tester.pumpWidget(
       loggedInApp(
-        ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock),
+        ApiClient(
+          baseUrl: 'http://api.test',
+          studentId: 's',
+          client: withQuizList(mock),
+        ),
       ),
     );
     await tester.pumpAndSettle();
+    await openQuizFromPicker(tester);
     expect(find.text('Erro interno'), findsOneWidget);
 
     await tester.tap(find.text('Tentar novamente'));

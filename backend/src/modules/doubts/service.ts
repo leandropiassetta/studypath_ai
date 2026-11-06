@@ -138,6 +138,11 @@ export class DoubtService {
         log.warn({ level: input.level }, 'Hint would reveal the answer; using the reference hint');
         return fallback;
       }
+      // The last hint is the full solution: it has to actually conclude with the answer.
+      if (input.level >= MAX_HINTS && !leaksAnswer(text, input)) {
+        log.warn('Final hint does not state the answer; using the reference solution');
+        return fallback;
+      }
       return { text, source: 'llm' };
     } catch (err) {
       log.warn(

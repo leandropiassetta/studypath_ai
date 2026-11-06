@@ -104,10 +104,15 @@ Future<void> pumpApp(WidgetTester tester, MockClient mock) async {
   await reachResult(tester);
   await tester.pumpWidget(
     loggedInApp(
-      ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock),
+      ApiClient(
+        baseUrl: 'http://api.test',
+        studentId: 's',
+        client: withQuizList(mock),
+      ),
     ),
   );
   await tester.pumpAndSettle();
+  await openQuizFromPicker(tester);
 }
 
 void main() {

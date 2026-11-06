@@ -50,7 +50,7 @@ const quizJson = {
   ],
 };
 
-ApiClient clientFor(MockClient mock) =>
+ApiClient clientFor(http.Client mock) =>
     ApiClient(baseUrl: 'http://api.test', client: mock);
 
 void main() {
@@ -305,17 +305,17 @@ void main() {
     Future<(SessionController, List<http.Request>)> pumpAuth(
       WidgetTester tester, {
       FutureOr<http.Response> Function(http.Request)? handler,
+      bool withList = false,
     }) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final requests = <http.Request>[];
-      final api = clientFor(
-        MockClient((req) async {
-          requests.add(req);
-          return handler != null ? await handler(req) : json(sessionBody());
-        }),
-      );
+      final mock = MockClient((req) async {
+        requests.add(req);
+        return handler != null ? await handler(req) : json(sessionBody());
+      });
+      final api = clientFor(withList ? withQuizList(mock) : mock);
       final controller = SessionController(api);
       await tester.pumpWidget(StudyPathApp(api: api, session: controller));
       return (controller, requests);
@@ -400,6 +400,7 @@ void main() {
         handler: (req) => req.url.path.endsWith('/login')
             ? json(sessionBody(name: 'Maria'))
             : json(quizJson),
+        withList: true,
       );
       await fill(tester, email: '  Maria@Teste.dev  ');
       await tester.tap(find.byKey(const Key('auth-submit')));
@@ -410,7 +411,12 @@ void main() {
         'Maria@Teste.dev',
       ); // trimmed, server lowercases
       expect(controller.isLoggedIn, isTrue);
-      expect(find.text('Simulado de Matemática'), findsOneWidget);
+      // Students land on the subject picker, with the logout action in its app bar.
+      expect(find.text('Escolha um assunto'), findsOneWidget);
+      expect(
+        find.byKey(const Key('quiz-card-demo-matematica')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('logout-button')), findsOneWidget);
     });
 
@@ -527,15 +533,17 @@ void main() {
       addTearDown(tester.view.reset);
       var who = 'Maria';
       final api = clientFor(
-        MockClient((req) async {
-          if (req.url.path.endsWith('/login')) {
-            return json(sessionBody(id: who, name: who));
-          }
-          if (req.url.path.endsWith('/logout')) {
-            return http.Response('', 204);
-          }
-          return json(quizJson);
-        }),
+        withQuizList(
+          MockClient((req) async {
+            if (req.url.path.endsWith('/login')) {
+              return json(sessionBody(id: who, name: who));
+            }
+            if (req.url.path.endsWith('/logout')) {
+              return http.Response('', 204);
+            }
+            return json(quizJson);
+          }),
+        ),
       );
       final controller = SessionController(api);
       await tester.pumpWidget(StudyPathApp(api: api, session: controller));
@@ -554,21 +562,28 @@ void main() {
       }
 
       await logIn();
+      await openQuizFromPicker(tester);
       await tester.tap(find.byKey(const Key('option-q1-B')));
       await tester.pump();
       expect(find.text('Enviar respostas (1/1)'), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('logout-button')));
+      // Going back with marked answers asks first, then lands on the picker.
+      await tester.pageBack();
       await tester.pumpAndSettle();
-      // There were marked answers, so leaving asks first.
       expect(find.text('Sair do simulado?'), findsOneWidget);
       await tester.tap(find.byKey(const Key('leave-quiz')));
+      await tester.pumpAndSettle();
+      expect(find.text('Escolha um assunto'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('logout-button')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('auth-submit')), findsOneWidget);
       expect(api.hasSession, isFalse);
 
       who = 'Joao';
       await logIn();
+      expect(find.textContaining('Olá, Joao'), findsOneWidget);
+      await openQuizFromPicker(tester);
       // A brand-new quiz screen: the previous student's answer is gone.
       expect(find.text('Enviar respostas (0/1)'), findsOneWidget);
     },

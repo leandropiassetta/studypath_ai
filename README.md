@@ -151,3 +151,7 @@ Os testes de integração usam o banco isolado `studypath_test` (criado pelo Doc
 Opcional: defina `REDIS_URL` (o `npm run db:up` já sobe o Redis). Ao chamar a professora, a API enfileira (1) um job que pede à IA o provável equívoco do aluno e grava em `doubts.misconception`, com 3 tentativas e espera exponencial, e frase simples como fallback; (2) um job atrasado (`SLA_DELAY_MS`, padrão 14 min) que marca `sla_breached_at` se a dúvida continua sem resposta. Jobs usam o id da dúvida como `jobId` (idempotente); se o Redis estiver fora, o pedido segue normalmente.
 
 `LLM_BASE_URL` permite usar qualquer provedor compatível com a API da OpenAI, como o plano gratuito do Groq (ver `.env.example`).
+
+## Assuntos (disciplinas)
+
+O app tem um simulado por assunto: Matemática (Equações e Geometria, 8 questões), Geografia, História, Inglês e Ciências (4 questões cada), mais 4 questões extras por assunto para as recomendações e os quizzes de revisão. A tela inicial do aluno lista os simulados (`GET /api/v1/quizzes`). As recomendações consideram todos os assuntos juntos; a evolução mostra só tentativas do mesmo simulado, porque notas de simulados diferentes não são comparáveis. Cada explicação de referência segue o formato "pista: fato", e a parte antes dos dois pontos vira a dica de nível 2 sem entregar a resposta. A dica final (nível 3) só é aceita se disser a resposta; senão entra a solução de referência.

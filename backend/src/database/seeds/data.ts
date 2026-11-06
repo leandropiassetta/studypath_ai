@@ -8,6 +8,40 @@ export const DEMO_QUIZ_ID = '11111111-1111-4111-8111-111111111111';
 export const DEMO_QUIZ_SLUG = 'demo-matematica';
 export const TOPIC_EQUACOES_ID = '33333333-3333-4333-8333-333333333333';
 export const TOPIC_GEOMETRIA_ID = '33333333-3333-4333-8333-333333333334';
+export const TOPIC_GEOGRAFIA_ID = '33333333-3333-4333-8333-333333333335';
+export const TOPIC_HISTORIA_ID = '33333333-3333-4333-8333-333333333336';
+export const TOPIC_INGLES_ID = '33333333-3333-4333-8333-333333333337';
+export const TOPIC_CIENCIAS_ID = '33333333-3333-4333-8333-333333333338';
+
+export const SEED_TOPICS = [
+  { id: TOPIC_EQUACOES_ID, name: 'Equações' },
+  { id: TOPIC_GEOMETRIA_ID, name: 'Geometria' },
+  { id: TOPIC_GEOGRAFIA_ID, name: 'Geografia' },
+  { id: TOPIC_HISTORIA_ID, name: 'História' },
+  { id: TOPIC_INGLES_ID, name: 'Inglês' },
+  { id: TOPIC_CIENCIAS_ID, name: 'Ciências' },
+];
+
+/** One simulado per subject. Math is the original demo quiz and keeps its stable id and slug. */
+export const SEED_QUIZZES = [
+  { id: DEMO_QUIZ_ID, slug: DEMO_QUIZ_SLUG, title: 'Simulado de Matemática' },
+  {
+    id: '11111111-1111-4111-8111-111111111112',
+    slug: 'demo-geografia',
+    title: 'Simulado de Geografia',
+  },
+  {
+    id: '11111111-1111-4111-8111-111111111113',
+    slug: 'demo-historia',
+    title: 'Simulado de História',
+  },
+  { id: '11111111-1111-4111-8111-111111111114', slug: 'demo-ingles', title: 'Simulado de Inglês' },
+  {
+    id: '11111111-1111-4111-8111-111111111115',
+    slug: 'demo-ciencias',
+    title: 'Simulado de Ciências',
+  },
+];
 
 export interface SeedQuestion {
   id: string;
@@ -18,8 +52,10 @@ export interface SeedQuestion {
   difficulty: Difficulty;
   referenceExplanation: string;
   createdAt: Date;
-  /** Position in the demo quiz, or null for extra (recommendation-only) questions. */
+  /** Position in the quiz, or null for extra (recommendation-only) questions. */
   quizPosition: number | null;
+  /** Slug of the quiz the question belongs to (null for extras). */
+  quizSlug: string | null;
 }
 
 interface Draft {
@@ -30,6 +66,8 @@ interface Draft {
   correct: number; // index into choices
   explanation: string;
   quizPosition: number | null;
+  /** Defaults to the math demo quiz. */
+  quizSlug?: string;
 }
 
 const KEYS = ['A', 'B', 'C', 'D'];
@@ -260,6 +298,244 @@ const DRAFTS: Draft[] = [
   },
 ];
 
+type Pick = [statement: string, choices: string[], correct: number, explanation: string];
+
+/**
+ * A subject: 4 quiz questions (easy, easy, medium, medium) and 4 extras for recommendations and
+ * review quizzes (easy, easy, medium, hard). Every explanation follows "pista: fato": what comes
+ * before the first colon is a cue that does not reveal the answer (the fallback for hint level 2).
+ */
+function subject(topicId: string, slug: string, picks: Pick[]): Draft[] {
+  const difficulties: Difficulty[] = [
+    'easy',
+    'easy',
+    'medium',
+    'medium',
+    'easy',
+    'easy',
+    'medium',
+    'hard',
+  ];
+  return picks.map(([statement, choices, correct, explanation], i) => ({
+    topicId,
+    difficulty: difficulties[i] as Difficulty,
+    quizPosition: i < 4 ? i + 1 : null,
+    ...(i < 4 ? { quizSlug: slug } : {}),
+    statement,
+    choices,
+    correct,
+    explanation,
+  }));
+}
+
+DRAFTS.push(
+  ...subject(TOPIC_GEOGRAFIA_ID, 'demo-geografia', [
+    [
+      'Qual é a capital do Brasil?',
+      ['Rio de Janeiro', 'Brasília', 'São Paulo', 'Salvador'],
+      1,
+      'Pense em qual cidade abriga a sede do governo federal: a capital do Brasil é Brasília, inaugurada em 1960.',
+    ],
+    [
+      'Qual é o maior oceano do planeta?',
+      ['Atlântico', 'Índico', 'Pacífico', 'Ártico'],
+      2,
+      'Compare a área ocupada por cada oceano: o maior é o Pacífico, que cobre cerca de um terço da superfície da Terra.',
+    ],
+    [
+      'Qual é o maior rio do Brasil em extensão?',
+      ['São Francisco', 'Amazonas', 'Paraná', 'Tocantins'],
+      1,
+      'Lembre-se da maior bacia hidrográfica do mundo: o rio Amazonas é o mais extenso e caudaloso do Brasil.',
+    ],
+    [
+      'Em qual continente fica o deserto do Saara?',
+      ['Ásia', 'África', 'Oceania', 'América do Sul'],
+      1,
+      'Pense no maior deserto quente do planeta e em onde ele fica: o Saara está no norte da África.',
+    ],
+    [
+      'Qual região brasileira tem o maior número de estados?',
+      ['Sul', 'Sudeste', 'Nordeste', 'Norte'],
+      2,
+      'Conte os estados de cada região do país: o Nordeste tem 9 estados, o maior número entre as regiões.',
+    ],
+    [
+      'Qual é a capital da Argentina?',
+      ['Montevidéu', 'Buenos Aires', 'Santiago', 'Lima'],
+      1,
+      'Lembre-se da cidade às margens do Rio da Prata: a capital da Argentina é Buenos Aires.',
+    ],
+    [
+      'Qual linha imaginária divide a Terra nos hemisférios Norte e Sul?',
+      ['Trópico de Câncer', 'Meridiano de Greenwich', 'Equador', 'Trópico de Capricórnio'],
+      2,
+      'Pense na linha de latitude zero: a linha do Equador separa os hemisférios Norte e Sul.',
+    ],
+    [
+      'Qual é o menor país do mundo em área?',
+      ['Mônaco', 'Vaticano', 'San Marino', 'Liechtenstein'],
+      1,
+      'Pense em um Estado inteiramente cercado pela cidade de Roma: o menor país do mundo é o Vaticano, com cerca de 0,44 km².',
+    ],
+  ]),
+  ...subject(TOPIC_HISTORIA_ID, 'demo-historia', [
+    [
+      'Em que ano o Brasil declarou a independência de Portugal?',
+      ['1500', '1822', '1889', '1922'],
+      1,
+      'Lembre-se do grito do Ipiranga, dado por Dom Pedro I: a Independência do Brasil foi proclamada em 1822.',
+    ],
+    [
+      'Quem foi o primeiro presidente do Brasil?',
+      ['Getúlio Vargas', 'Deodoro da Fonseca', 'Dom Pedro II', 'Juscelino Kubitschek'],
+      1,
+      'Pense em quem comandou a Proclamação da República, em 1889: o primeiro presidente foi o marechal Deodoro da Fonseca.',
+    ],
+    [
+      'A Revolução Francesa começou em que ano?',
+      ['1689', '1789', '1889', '1815'],
+      1,
+      'Relacione a queda da Bastilha ao início da Revolução Francesa: o marco inicial foi 14 de julho de 1789.',
+    ],
+    [
+      'Qual civilização construiu as pirâmides de Gizé?',
+      ['Romana', 'Egípcia', 'Maia', 'Grega'],
+      1,
+      'Pense no povo que vivia às margens do rio Nilo e era governado por faraós: as pirâmides de Gizé foram construídas pelos egípcios.',
+    ],
+    [
+      'Quem comandou a frota portuguesa que chegou ao Brasil em 1500?',
+      ['Cristóvão Colombo', 'Pedro Álvares Cabral', 'Vasco da Gama', 'Dom João VI'],
+      1,
+      'Lembre-se da frota que chegou ao litoral da Bahia: o comandante foi Pedro Álvares Cabral.',
+    ],
+    [
+      'Em que ano terminou a Segunda Guerra Mundial?',
+      ['1918', '1939', '1945', '1950'],
+      2,
+      'Lembre-se da rendição do Japão, depois das bombas atômicas: a guerra terminou em 1945.',
+    ],
+    [
+      'Qual lei aboliu a escravidão no Brasil?',
+      ['Lei do Ventre Livre', 'Lei Áurea', 'Lei Eusébio de Queirós', 'Lei dos Sexagenários'],
+      1,
+      'Pense na lei assinada pela princesa Isabel em 1888: foi a Lei Áurea que aboliu a escravidão.',
+    ],
+    [
+      'A queda do Muro de Berlim aconteceu em que ano?',
+      ['1961', '1979', '1989', '1991'],
+      2,
+      'Relacione o muro ao fim da Guerra Fria na Europa: ele caiu em 1989.',
+    ],
+  ]),
+  ...subject(TOPIC_INGLES_ID, 'demo-ingles', [
+    [
+      "Qual é a tradução de 'house' para o português?",
+      ['Casa', 'Carro', 'Cachorro', 'Cadeira'],
+      0,
+      "Pense no lugar onde as pessoas moram: 'house' significa casa.",
+    ],
+    [
+      "Complete a frase: 'She ___ a student.'",
+      ['am', 'is', 'are', 'be'],
+      1,
+      "Lembre-se do verbo to be na terceira pessoa do singular: com 'she' usamos 'is'.",
+    ],
+    [
+      "Qual é o plural de 'child'?",
+      ['childs', 'childrens', 'children', 'childes'],
+      2,
+      "Lembre-se de que alguns substantivos têm plural irregular: o plural de 'child' é 'children'.",
+    ],
+    [
+      "Complete a frase: 'I ___ to school every day.'",
+      ['go', 'goes', 'going', 'gone'],
+      0,
+      "Observe o sujeito e o presente simples: com 'I' o verbo fica sem -s, ou seja, 'go'.",
+    ],
+    [
+      "Como se diz 'obrigado' em inglês?",
+      ['Please', 'Sorry', 'Thank you', 'Welcome'],
+      2,
+      "Pense na expressão de agradecimento mais comum: 'obrigado' é 'thank you'.",
+    ],
+    [
+      "Qual é o oposto de 'hot'?",
+      ['Warm', 'Cold', 'Big', 'Small'],
+      1,
+      "Pense na temperatura contrária: o oposto de 'hot' (quente) é 'cold' (frio).",
+    ],
+    [
+      "Qual é o passado simples do verbo 'go'?",
+      ['goed', 'went', 'gone', 'going'],
+      1,
+      "Lembre-se de que é um verbo irregular, que muda de forma no passado: o passado de 'go' é 'went'.",
+    ],
+    [
+      'Qual frase está correta?',
+      [
+        "He don't like pizza.",
+        "He doesn't likes pizza.",
+        "He doesn't like pizza.",
+        'He not like pizza.',
+      ],
+      2,
+      "Lembre-se da regra da negativa na terceira pessoa do singular: usa-se 'doesn't' e o verbo principal fica sem -s.",
+    ],
+  ]),
+  ...subject(TOPIC_CIENCIAS_ID, 'demo-ciencias', [
+    [
+      'Qual gás as plantas absorvem na fotossíntese?',
+      ['Oxigênio', 'Gás carbônico', 'Nitrogênio', 'Hidrogênio'],
+      1,
+      'Pense no gás que as plantas retiram do ar para produzir alimento: elas absorvem gás carbônico e liberam oxigênio.',
+    ],
+    [
+      'Qual é o planeta mais próximo do Sol?',
+      ['Vênus', 'Terra', 'Mercúrio', 'Marte'],
+      2,
+      'Ordene os planetas a partir do Sol: o primeiro da lista é Mercúrio.',
+    ],
+    [
+      'Qual é a fórmula química da água?',
+      ['CO₂', 'H₂O', 'O₂', 'NaCl'],
+      1,
+      'Lembre-se dos elementos que formam a água: dois átomos de hidrogênio e um de oxigênio, ou seja, H₂O.',
+    ],
+    [
+      'Qual órgão bombeia o sangue pelo corpo humano?',
+      ['Pulmão', 'Fígado', 'Coração', 'Rim'],
+      2,
+      'Pense no órgão do sistema circulatório que pulsa o tempo todo: o coração bombeia o sangue para o corpo inteiro.',
+    ],
+    [
+      'Em que estado físico a água está a 25 °C, ao nível do mar?',
+      ['Sólido', 'Líquido', 'Gasoso', 'Plasma'],
+      1,
+      'Compare 25 °C com os pontos de congelamento (0 °C) e de ebulição (100 °C): a água está no estado líquido.',
+    ],
+    [
+      'Qual é a principal fonte de energia da Terra?',
+      ['Lua', 'Sol', 'Vento', 'Carvão'],
+      1,
+      'Pense na estrela que aquece e ilumina o planeta: o Sol é a principal fonte de energia da Terra.',
+    ],
+    [
+      'Quantos ossos tem o corpo de um adulto?',
+      ['106', '206', '306', '406'],
+      1,
+      'Lembre-se do número ensinado nas aulas de anatomia: um adulto tem 206 ossos.',
+    ],
+    [
+      'O que acontece com a velocidade de um objeto em queda livre, sem resistência do ar?',
+      ['Diminui', 'Aumenta', 'Permanece constante', 'Zera'],
+      1,
+      'Pense na gravidade agindo o tempo todo sobre o objeto: a velocidade aumenta cerca de 9,8 m/s a cada segundo.',
+    ],
+  ]),
+);
+
 const BASE_TIME = Date.UTC(2026, 0, 1, 0, 0, 0);
 
 export function buildSeedQuestions(): SeedQuestion[] {
@@ -273,6 +549,7 @@ export function buildSeedQuestions(): SeedQuestion[] {
     referenceExplanation: d.explanation,
     createdAt: new Date(BASE_TIME + i * 60_000),
     quizPosition: d.quizPosition,
+    quizSlug: d.quizPosition === null ? null : (d.quizSlug ?? DEMO_QUIZ_SLUG),
   }));
 }
 

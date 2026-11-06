@@ -798,10 +798,10 @@ void main() {
     });
 
     testWidgets(
-      'a student account lands on the quiz, never on the teacher queue',
+      'a student account lands on the subject picker, never on the teacher queue',
       (tester) async {
         await pumpApp(tester, 'student');
-        expect(find.text('Simulado de Matemática'), findsOneWidget);
+        expect(find.text('Escolha um assunto'), findsOneWidget);
         expect(find.text('Fila de dúvidas'), findsNothing);
       },
     );

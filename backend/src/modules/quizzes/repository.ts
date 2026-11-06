@@ -5,7 +5,7 @@ import {
   type Difficulty,
   type QuestionOption,
 } from '../../database/entities/index.js';
-import type { QuizView } from './schemas.js';
+import type { QuizListItem, QuizView } from './schemas.js';
 
 interface QuestionRow {
   id: string;
@@ -18,6 +18,39 @@ interface QuestionRow {
 
 export class QuizRepository {
   constructor(private readonly ds: DataSource) {}
+
+  /** The simulados a student can choose from (review quizzes are made on demand, not listed). */
+  async listStandard(): Promise<QuizListItem[]> {
+    const rows = await this.ds.query<
+      {
+        id: string;
+        slug: string;
+        title: string;
+        question_count: number;
+        topics: { id: string; name: string }[];
+      }[]
+    >(
+      `SELECT qz.id, qz.slug, qz.title,
+              count(qq.question_id)::int AS question_count,
+              COALESCE(json_agg(DISTINCT jsonb_build_object('id', t.id, 'name', t.name))
+                       FILTER (WHERE t.id IS NOT NULL), '[]') AS topics
+       FROM quizzes qz
+       LEFT JOIN quiz_questions qq ON qq.quiz_id = qz.id
+       LEFT JOIN questions q ON q.id = qq.question_id
+       LEFT JOIN topics t ON t.id = q.topic_id
+       WHERE qz.is_active AND qz.kind = 'standard'
+       GROUP BY qz.id
+       HAVING count(qq.question_id) > 0
+       ORDER BY qz.title`,
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      title: r.title,
+      questionCount: r.question_count,
+      topics: [...r.topics].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    }));
+  }
 
   /** Active quiz with questions ordered by position. Never selects the answer key. */
   async findActiveBySlug(slug: string): Promise<QuizView | null> {

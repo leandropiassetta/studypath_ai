@@ -54,7 +54,8 @@ afterAll(async () => {
 describe('POST /api/v1/attempts', () => {
   it('seed answer key matches the test fixture', async () => {
     const rows = await ds.query<{ correct_option: string }[]>(
-      `SELECT q.correct_option FROM quiz_questions qq JOIN questions q ON q.id = qq.question_id ORDER BY qq.position`,
+      `SELECT q.correct_option FROM quiz_questions qq JOIN questions q ON q.id = qq.question_id
+       WHERE qq.quiz_id = '${DEMO_QUIZ_ID}' ORDER BY qq.position`,
     );
     expect(rows.map((r) => r.correct_option)).toEqual(CORRECT);
   });

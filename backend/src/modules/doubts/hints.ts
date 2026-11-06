@@ -23,6 +23,13 @@ export function leaksAnswer(hint: string, input: HintInput): boolean {
       'iu',
     );
     if (stating.test(hint)) return true;
+    // Non-math subjects: the answer is a word or a name ("Brasília", "went"). Saying it outright
+    // gives it away, unless the question itself already says it.
+    const isWord = /\p{L}/u.test(correct) && correct.length >= 3;
+    if (isWord && !input.statement.toLowerCase().includes(correct.toLowerCase())) {
+      const word = new RegExp(`(?<![\\p{L}\\p{N}])${value}(?![\\p{L}\\p{N}])`, 'iu');
+      if (word.test(hint)) return true;
+    }
   }
   return false;
 }
@@ -44,7 +51,7 @@ export function referenceHint(input: HintInput, level: HintLevel): string {
     case 1:
       return 'Releia o enunciado com calma e identifique o que a questão pede. Qual conceito você usaria para começar?';
     case 2:
-      return `Dica de método: ${methodCue(input.referenceExplanation).replace(/[.:]+$/, '')}. Tente seguir esse passo antes de calcular o resto.`;
+      return `Dica: ${methodCue(input.referenceExplanation).replace(/[.:]+$/, '')}. Use essa pista antes de escolher a alternativa.`;
     default:
       return `${input.referenceExplanation} A alternativa correta é ${input.correctOption}.`;
   }

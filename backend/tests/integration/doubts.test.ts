@@ -227,8 +227,23 @@ describe('graded hints', () => {
     expect(h1.source).toBe('reference');
     expect(h1.text).not.toMatch(/alternativa correta é B/);
     expect(h2.source).toBe('reference');
-    expect(h2.text).toMatch(/^Dica de método: Divida os dois lados por 2/);
+    expect(h2.text).toMatch(/^Dica: Divida os dois lados por 2/);
     expect(h3).toMatchObject({ source: 'llm', text: 'Resolvendo: x = 5, alternativa B.' }); // allowed on level 3
+  });
+
+  it('a final hint that never states the answer is replaced by the full reference solution', async () => {
+    const vague = providerReturning({
+      1: { hint: 'Qual operação isola x?' },
+      2: { hint: 'Subtraia dos dois lados.' },
+      3: { hint: 'Pense com calma e refaça a conta.' }, // allowed on levels 1-2, useless as a solution
+    });
+    const app = appWith(vague);
+    const doubtId = (await openDoubt(app, await submit(app))).json().id as string;
+    await hint(app, doubtId);
+    await hint(app, doubtId);
+    const h3 = (await hint(app, doubtId)).json();
+    expect(h3.source).toBe('reference');
+    expect(h3.text).toContain('A alternativa correta é B.');
   });
 
   it('falls back to the reference hints on failure, bad output, a missing hint method or AI off', async () => {

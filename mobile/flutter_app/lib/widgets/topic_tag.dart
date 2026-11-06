@@ -11,8 +11,20 @@ const List<Color> _palette = [
   Color(0xFF2E7D32), // green
 ];
 
+/// The known subjects each keep their own color; anything else falls back to the name hash below.
+const Map<String, int> _subjectColor = {
+  'Equações': 2, // orange
+  'Geometria': 1, // teal
+  'Geografia': 0, // indigo
+  'História': 3, // purple
+  'Inglês': 4, // red
+  'Ciências': 5, // green
+};
+
 /// Stable color per topic name (same topic, same color, on every screen and run).
 Color topicColor(String name) {
+  final fixed = _subjectColor[name];
+  if (fixed != null) return _palette[fixed];
   var sum = 0;
   for (final unit in name.codeUnits) {
     sum += unit;

@@ -23,3 +23,14 @@ export const QuizResponse = Type.Object({
 });
 
 export type QuizView = Static<typeof QuizResponse>;
+
+export const QuizListResponse = Type.Array(
+  Type.Object({
+    id: Type.String(),
+    slug: Type.String(),
+    title: Type.String(),
+    questionCount: Type.Integer(),
+    topics: Type.Array(Type.Object({ id: Type.String(), name: Type.String() })),
+  }),
+);
+export type QuizListItem = Static<typeof QuizListResponse>[number];

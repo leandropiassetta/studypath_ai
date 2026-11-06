@@ -1,12 +1,10 @@
 import type { DataSource } from 'typeorm';
 import { Question, Quiz, QuizQuestion, Student, Topic } from '../entities/index.js';
 import {
-  DEMO_QUIZ_ID,
-  DEMO_QUIZ_SLUG,
   DEMO_STUDENT_ID,
+  SEED_QUIZZES,
+  SEED_TOPICS,
   TEACHER_ID,
-  TOPIC_EQUACOES_ID,
-  TOPIC_GEOMETRIA_ID,
   buildSeedQuestions,
   validateSeedQuestion,
 } from './data.js';
@@ -55,21 +53,12 @@ export async function seed(ds: DataSource, options: SeedOptions = {}): Promise<v
     }
     await m.upsert(
       Topic,
-      [
-        { id: TOPIC_EQUACOES_ID, name: 'Equações', createdAt },
-        { id: TOPIC_GEOMETRIA_ID, name: 'Geometria', createdAt },
-      ],
+      SEED_TOPICS.map((t) => ({ ...t, createdAt })),
       ['id'],
     );
     await m.upsert(
       Quiz,
-      {
-        id: DEMO_QUIZ_ID,
-        slug: DEMO_QUIZ_SLUG,
-        title: 'Simulado de Matemática',
-        isActive: true,
-        createdAt,
-      },
+      SEED_QUIZZES.map((qz) => ({ ...qz, isActive: true, createdAt })),
       ['id'],
     );
     await m.upsert(
@@ -88,11 +77,12 @@ export async function seed(ds: DataSource, options: SeedOptions = {}): Promise<v
     );
     await m.upsert(
       QuizQuestion,
-      questions.flatMap((q) =>
-        q.quizPosition === null
-          ? []
-          : [{ quizId: DEMO_QUIZ_ID, questionId: q.id, position: q.quizPosition }],
-      ),
+      questions.flatMap((q) => {
+        const quiz = SEED_QUIZZES.find((qz) => qz.slug === q.quizSlug);
+        return quiz && q.quizPosition !== null
+          ? [{ quizId: quiz.id, questionId: q.id, position: q.quizPosition }]
+          : [];
+      }),
       ['quizId', 'questionId'],
     );
   });

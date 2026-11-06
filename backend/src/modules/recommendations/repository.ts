@@ -25,9 +25,15 @@ export class RecommendationRepository {
     answers: HistoricAnswer[];
   }> {
     const attempts = await this.ds.query<
-      { id: string; submitted_at: Date; score_pct: string; kind: 'standard' | 'review' }[]
+      {
+        id: string;
+        submitted_at: Date;
+        score_pct: string;
+        kind: 'standard' | 'review';
+        quiz_id: string;
+      }[]
     >(
-      `SELECT a.id, a.submitted_at, a.score_pct, qz.kind
+      `SELECT a.id, a.submitted_at, a.score_pct, qz.kind, a.quiz_id
        FROM attempts a JOIN quizzes qz ON qz.id = a.quiz_id
        WHERE a.student_id = $1
        ORDER BY a.submitted_at DESC, a.id DESC LIMIT $2`,
@@ -57,6 +63,7 @@ export class RecommendationRepository {
         submittedAt: a.submitted_at,
         scorePct: Number(a.score_pct),
         kind: a.kind,
+        quizId: a.quiz_id,
       })),
       answers: rows.map((r) => ({
         attemptId: r.attempt_id,

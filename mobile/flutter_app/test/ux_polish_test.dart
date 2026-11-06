@@ -57,7 +57,7 @@ const quizJson = {
   ],
 };
 
-ApiClient apiWith(MockClient mock) =>
+ApiClient apiWith(http.Client mock) =>
     ApiClient(baseUrl: 'http://api.test', studentId: 's', client: mock);
 ApiClient quizApi() => apiWith(MockClient((_) async => json(quizJson)));
 
@@ -432,9 +432,12 @@ void main() {
       phone(tester);
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-      final api = quizApi();
+      final api = apiWith(
+        withQuizList(MockClient((_) async => json(quizJson))),
+      );
       await tester.pumpWidget(loggedInApp(api));
       await tester.pumpAndSettle();
+      await openQuizFromPicker(tester);
 
       final context = tester.element(find.byType(Scaffold).first);
       expect(Theme.of(context).brightness, Brightness.dark);
