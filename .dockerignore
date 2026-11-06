@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+**/node_modules
+backend/dist
+backend/tests
+mobile
+docs
+scripts
+.env
+.env.*
+!.env.example
+*.md

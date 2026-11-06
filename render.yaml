@@ -1,0 +1,54 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec): cria a API e o Redis.
+# O banco é o Neon (fora do Render). As variáveis com `sync: false` NÃO ficam neste arquivo:
+# o Render pede o valor no painel quando o blueprint é criado. Veja DEPLOY.md.
+services:
+  - type: web
+    name: studypath-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # --- Segredos (valor informado no painel, nunca no git) ---
+      - key: DATABASE_URL # string de conexão do Neon
+        sync: false
+      - key: LLM_API_KEY # chave do Groq
+        sync: false
+      - key: TEACHER_INVITE_CODE # código de convite para professor (>= 8 caracteres)
+        sync: false
+      - key: TEACHER_EMAIL # conta de professor criada no primeiro start
+        sync: false
+      - key: TEACHER_PASSWORD # use uma senha NOVA, diferente da dos exemplos do README
+        sync: false
+      - key: ALLOWED_ORIGINS # ex.: https://seu-usuario.github.io
+        sync: false
+      # --- Configuração (não secreta) ---
+      - key: TEACHER_NAME
+        value: Professor(a)
+      - key: TRUST_PROXY # um proxy (o do Render) na frente da API
+        value: "1"
+      - key: AI_MODE
+        value: real
+      - key: LLM_PROVIDER
+        value: openai
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai
+      - key: LLM_MODEL
+        value: openai/gpt-oss-20b
+      - key: AI_MAX_CALLS_PER_DAY # por aluno
+        value: "20"
+      - key: AI_MAX_CALLS_GLOBAL_PER_DAY # todos juntos: protege a cota gratuita do Groq
+        value: "300"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: studypath-redis
+          property: connectionString
+
+  - type: keyvalue
+    name: studypath-redis
+    plan: free
+    maxmemoryPolicy: noeviction # o BullMQ exige que nenhuma chave seja removida
+    ipAllowList: [] # só serviços do mesmo workspace (rede interna)
