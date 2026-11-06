@@ -18,7 +18,10 @@
     "db:migrate": "npm run db:migrate -w backend",
     "db:revert": "npm run db:revert -w backend",
     "db:seed": "npm run db:seed -w backend",
-    "check:secrets": "scripts/check-secrets.sh"
+    "check:secrets": "scripts/check-secrets.sh",
+    "demo:setup": "scripts/demo-setup.sh",
+    "demo:reset": "scripts/demo-reset.sh",
+    "demo:check": "scripts/demo-check.sh"
   },
   "devDependencies": {
     "prettier": "^3.9.10"
