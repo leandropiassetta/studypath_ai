@@ -163,6 +163,68 @@ class ApiClient {
     return _parse(json, Doubt.fromJson);
   }
 
+  Future<Doubt> getDoubt(String doubtId) async {
+    final json = await _send(
+      () => _client.get(
+        _uri('/doubts/${Uri.encodeComponent(doubtId)}'),
+        headers: _headers(),
+      ),
+    );
+    return _parse(json, Doubt.fromJson);
+  }
+
+  /// "Chamar professor": puts the doubt in the teachers' queue (idempotent).
+  Future<Doubt> requestTeacher(String doubtId) async {
+    final json = await _send(
+      () => _client.post(
+        _uri('/doubts/${Uri.encodeComponent(doubtId)}/teacher'),
+        headers: _headers(json: true),
+        body: '{}',
+      ),
+    );
+    return _parse(json, Doubt.fromJson);
+  }
+
+  /// "Isso ajudou?": at least one of the two ratings.
+  Future<Doubt> sendFeedback(
+    String doubtId, {
+    bool? aiHelpful,
+    bool? teacherHelpful,
+  }) async {
+    final json = await _send(
+      () => _client.put(
+        _uri('/doubts/${Uri.encodeComponent(doubtId)}/feedback'),
+        headers: _headers(json: true),
+        body: jsonEncode({
+          'aiHelpful': ?aiHelpful,
+          'teacherHelpful': ?teacherHelpful,
+        }),
+      ),
+    );
+    return _parse(json, Doubt.fromJson);
+  }
+
+  /// Teacher side: waiting doubts (oldest first) or the ones this teacher answered.
+  Future<List<TeacherDoubt>> fetchTeacherQueue({bool answered = false}) async {
+    final json = await _sendList(
+      () => _client.get(
+        _uri('/teacher/doubts?status=${answered ? 'answered' : 'waiting'}'),
+        headers: _headers(),
+      ),
+    );
+    return json.map((d) => _parse(d, TeacherDoubt.fromJson)).toList();
+  }
+
+  Future<void> answerDoubt(String doubtId, String answer) async {
+    await _send(
+      () => _client.post(
+        _uri('/teacher/doubts/${Uri.encodeComponent(doubtId)}/answer'),
+        headers: _headers(json: true),
+        body: jsonEncode({'answer': answer.trim()}),
+      ),
+    );
+  }
+
   /// The server decides which level comes next (1, 2, then the full solution).
   Future<HintResult> nextHint(String doubtId) async {
     final json = await _send(
@@ -210,6 +272,25 @@ class ApiClient {
       ),
     );
     return _parse(json, Recommendations.fromJson);
+  }
+
+  /// Like [_send] for endpoints whose body is a JSON array (the teacher queue).
+  Future<List<Map<String, dynamic>>> _sendList(
+    Future<http.Response> Function() request,
+  ) async {
+    final wrapped = await _send(() async {
+      final response = await request();
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        return http.Response(
+          jsonEncode({'items': decoded}),
+          response.statusCode,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }
+      return response;
+    });
+    return (wrapped['items'] as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   /// A malformed 2xx body must surface as an [ApiException] so screens leave the

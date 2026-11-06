@@ -28,6 +28,12 @@ class Doubt {
     required this.maxHints,
     required this.hints,
     this.message,
+    this.teacherRequestedAt,
+    this.etaMinutes = 14,
+    this.teacherAnswer,
+    this.answeredAt,
+    this.aiHelpful,
+    this.teacherHelpful,
   });
 
   factory Doubt.fromJson(Map<String, dynamic> json) => Doubt(
@@ -39,6 +45,12 @@ class Doubt {
     hints: (json['hints'] as List<dynamic>)
         .map((h) => DoubtHint.fromJson(h as Map<String, dynamic>))
         .toList(),
+    teacherRequestedAt: _date(json['teacherRequestedAt']),
+    etaMinutes: (json['etaMinutes'] as int?) ?? 14,
+    teacherAnswer: json['teacherAnswer'] as String?,
+    answeredAt: _date(json['answeredAt']),
+    aiHelpful: json['aiHelpful'] as bool?,
+    teacherHelpful: json['teacherHelpful'] as bool?,
   );
 
   final String id;
@@ -51,6 +63,104 @@ class Doubt {
   final List<DoubtHint> hints;
 
   bool get hasMoreHints => hintsUsed < maxHints;
+
+  final DateTime? teacherRequestedAt;
+
+  /// The promised response time shown to the student (a target, not a guarantee).
+  final int etaMinutes;
+  final String? teacherAnswer;
+  final DateTime? answeredAt;
+  final bool? aiHelpful;
+  final bool? teacherHelpful;
+
+  bool get isWaiting => status == 'WAITING_TEACHER';
+  bool get isAnswered => status == 'ANSWERED';
+
+  Doubt copyWith({int? hintsUsed, List<DoubtHint>? hints}) => Doubt(
+    id: id,
+    status: status,
+    message: message,
+    hintsUsed: hintsUsed ?? this.hintsUsed,
+    maxHints: maxHints,
+    hints: hints ?? this.hints,
+    teacherRequestedAt: teacherRequestedAt,
+    etaMinutes: etaMinutes,
+    teacherAnswer: teacherAnswer,
+    answeredAt: answeredAt,
+    aiHelpful: aiHelpful,
+    teacherHelpful: teacherHelpful,
+  );
+}
+
+DateTime? _date(Object? value) =>
+    value is String ? DateTime.tryParse(value) : null;
+
+/// A doubt as a teacher sees it: the question, the student's choice, what the AI already said.
+class TeacherDoubt {
+  const TeacherDoubt({
+    required this.id,
+    required this.status,
+    required this.studentFirstName,
+    required this.topic,
+    required this.statement,
+    required this.options,
+    required this.selectedOption,
+    required this.correctOption,
+    required this.referenceExplanation,
+    required this.hintsUsed,
+    required this.aiHints,
+    required this.waitingMinutes,
+    this.message,
+    this.misconception,
+    this.answer,
+  });
+
+  factory TeacherDoubt.fromJson(Map<String, dynamic> json) => TeacherDoubt(
+    id: json['id'] as String,
+    status: json['status'] as String,
+    studentFirstName: json['studentFirstName'] as String,
+    topic: json['topic'] as String,
+    statement: json['statement'] as String,
+    options: (json['options'] as List<dynamic>)
+        .map(
+          (o) => (
+            key: (o as Map<String, dynamic>)['key'] as String,
+            text: o['text'] as String,
+          ),
+        )
+        .toList(),
+    selectedOption: json['selectedOption'] as String,
+    correctOption: json['correctOption'] as String,
+    referenceExplanation: json['referenceExplanation'] as String,
+    message: json['message'] as String?,
+    misconception: json['misconception'] as String?,
+    hintsUsed: json['hintsUsed'] as int,
+    aiHints: (json['aiHints'] as List<dynamic>)
+        .map((h) => DoubtHint.fromJson(h as Map<String, dynamic>))
+        .toList(),
+    waitingMinutes: json['waitingMinutes'] as int,
+    answer: json['answer'] as String?,
+  );
+
+  final String id;
+  final String status;
+  final String studentFirstName;
+  final String topic;
+  final String statement;
+  final List<({String key, String text})> options;
+  final String selectedOption;
+  final String correctOption;
+  final String referenceExplanation;
+  final String? message;
+
+  /// Probable misconception, when the background job has filled it in.
+  final String? misconception;
+  final int hintsUsed;
+  final List<DoubtHint> aiHints;
+  final int waitingMinutes;
+  final String? answer;
+
+  bool get isAnswered => status == 'ANSWERED';
 }
 
 /// The hint just delivered, with whether more are available.

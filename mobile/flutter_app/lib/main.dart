@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'config.dart';
 import 'screens/auth_screen.dart';
 import 'screens/quiz_screen.dart';
+import 'screens/teacher_queue_screen.dart';
 import 'services/api_client.dart';
 import 'services/session_controller.dart';
 import 'services/theme_controller.dart';
@@ -58,6 +59,15 @@ class _StudyPathAppState extends State<StudyPathApp> {
         builder: (context, _) {
           final current = widget.session.session;
           if (current == null) return AuthScreen(controller: widget.session);
+          // Teachers get the doubt queue; students get the quiz. The server enforces the same rule.
+          if (current.student.isTeacher) {
+            return TeacherQueueScreen(
+              key: ValueKey(current.student.id),
+              api: widget.api,
+              teacherName: current.student.name,
+              onLogout: widget.session.logout,
+            );
+          }
           // The key makes every login start from a fresh quiz, never a previous student's state.
           return QuizScreen(
             key: ValueKey(current.student.id),
