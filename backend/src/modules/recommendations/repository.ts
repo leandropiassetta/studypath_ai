@@ -16,12 +16,6 @@ export interface UnansweredQuestion {
 export class RecommendationRepository {
   constructor(private readonly ds: DataSource) {}
 
-  studentExists(id: string): Promise<boolean> {
-    return this.ds
-      .query<unknown[]>('SELECT 1 FROM students WHERE id = $1', [id])
-      .then((r) => r.length > 0);
-  }
-
   /**
    * RN-06: the student's attempts (newest first, capped) and all their answers. The cap only
    * bounds the work for very long histories; the demo never gets near it.

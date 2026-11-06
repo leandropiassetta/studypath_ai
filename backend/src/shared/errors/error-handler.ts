@@ -17,6 +17,7 @@ export function registerErrorHandling(app: FastifyInstance): void {
 
   app.setErrorHandler((err: FastifyError | AppError, req, reply) => {
     if (err instanceof AppError) {
+      for (const [name, value] of Object.entries(err.headers)) void reply.header(name, value);
       return reply.status(err.statusCode).send(body(err.code, err.message, err.details));
     }
     if ('validation' in err && err.validation) {

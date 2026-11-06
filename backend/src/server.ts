@@ -8,9 +8,9 @@ const dataSource = createDataSource(env.DATABASE_URL);
 await dataSource.initialize();
 const app = buildApp({
   dataSource,
-  demoStudentId: env.DEMO_STUDENT_ID,
   explanationProvider: createExplanationProvider(env),
   aiTimeoutMs: env.AI_TIMEOUT_MS,
+  auth: { sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60_000 },
   aiLimits: {
     perMinute: env.AI_MAX_CALLS_PER_MINUTE,
     perDay: env.AI_MAX_CALLS_PER_DAY,

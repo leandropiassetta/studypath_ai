@@ -1,8 +1,11 @@
 import { AppError } from './app-error.js';
 
-/** RN-10: demo mode accepts a single fictitious student; anyone else gets 403. */
-export function assertDemoStudent(studentId: string, demoStudentId: string): void {
-  if (studentId !== demoStudentId) {
-    throw new AppError(403, 'FORBIDDEN', 'Estudante não autorizado');
+/** The student named in the path or body must be the authenticated one. */
+export function assertSameStudent(
+  requestedStudentId: string,
+  authenticatedStudentId: string,
+): void {
+  if (requestedStudentId !== authenticatedStudentId) {
+    throw new AppError(403, 'FORBIDDEN', 'Você só pode acessar os dados da sua própria conta');
   }
 }

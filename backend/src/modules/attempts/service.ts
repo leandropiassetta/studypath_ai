@@ -1,5 +1,5 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
-import { assertDemoStudent } from '../../shared/errors/guards.js';
+import { assertSameStudent } from '../../shared/errors/guards.js';
 import { canonicalPayloadHash, gradeAttempt, validateAnswers } from './domain.js';
 import { DuplicateRequestError, type AttemptRepository, type StoredAttempt } from './repository.js';
 import type { AttemptResult, CreateAttemptInput } from './schemas.js';
@@ -11,21 +11,15 @@ export interface SubmitOutcome {
 }
 
 export class AttemptService {
-  constructor(
-    private readonly attempts: AttemptRepository,
-    private readonly demoStudentId: string,
-  ) {}
+  constructor(private readonly attempts: AttemptRepository) {}
 
   /**
-   * Check order: 403 student -> 404 student/quiz -> idempotency lookup (200 / 409)
+   * Check order: 403 student mismatch -> 404 quiz -> idempotency lookup (200 / 409)
    * -> 400 answers -> grade and persist. A concurrent duplicate loses the unique index
    * race and is resolved by re-reading the winning attempt.
    */
-  async submit(input: CreateAttemptInput): Promise<SubmitOutcome> {
-    assertDemoStudent(input.studentId, this.demoStudentId);
-    if (!(await this.attempts.studentExists(input.studentId))) {
-      throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
-    }
+  async submit(authStudentId: string, input: CreateAttemptInput): Promise<SubmitOutcome> {
+    assertSameStudent(input.studentId, authStudentId);
     if (!(await this.attempts.quizIsActive(input.quizId))) {
       throw notFound('QUIZ_NOT_FOUND', 'Simulado não encontrado');
     }

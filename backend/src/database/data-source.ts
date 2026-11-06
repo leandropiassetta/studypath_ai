@@ -8,6 +8,7 @@ import {
   Question,
   Quiz,
   QuizQuestion,
+  Session,
   Student,
   Topic,
 } from './entities/index.js';
@@ -19,7 +20,7 @@ export function createDataSource(url: string): DataSource {
     type: 'postgres',
     url,
     uuidExtension: 'pgcrypto',
-    entities: [Student, Topic, Quiz, Question, QuizQuestion, Attempt, AttemptAnswer],
+    entities: [Student, Topic, Quiz, Question, QuizQuestion, Attempt, AttemptAnswer, Session],
     // Schema changes happen only through versioned migrations.
     synchronize: false,
     migrationsRun: false,

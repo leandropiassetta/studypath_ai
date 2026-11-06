@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { getAuth } from '../../shared/http/auth.js';
 import type { AttemptService } from './service.js';
 import { AttemptResponse, CreateAttemptBody, type CreateAttemptInput } from './schemas.js';
 
@@ -14,7 +15,7 @@ export const attemptRoutes =
         },
       },
       async (req, reply) => {
-        const { created, result } = await service.submit(req.body);
+        const { created, result } = await service.submit(getAuth(req).studentId, req.body);
         return reply.status(created ? 201 : 200).send(result);
       },
     );

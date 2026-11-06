@@ -13,6 +13,7 @@ describe('loadEnv', () => {
       DEMO_STUDENT_ID: '55555555-5555-4555-8555-555555555555',
       AI_MODE: 'disabled',
       LLM_PROVIDER: 'anthropic',
+      SESSION_TTL_DAYS: 7,
       AI_MAX_CALLS_PER_MINUTE: 6,
       AI_MAX_CALLS_PER_DAY: 50,
       AI_TIMEOUT_MS: 8000,
@@ -64,6 +65,12 @@ describe('loadEnv', () => {
     expect(() =>
       loadEnv({ DATABASE_URL, HOST: '0.0.0.0', ALLOW_NON_LOOPBACK_HOST: 'yes' }),
     ).toThrow(/loopback/);
+  });
+
+  it('validates the session lifetime', () => {
+    expect(loadEnv({ DATABASE_URL, SESSION_TTL_DAYS: '30' }).SESSION_TTL_DAYS).toBe(30);
+    expect(() => loadEnv({ DATABASE_URL, SESSION_TTL_DAYS: '0' })).toThrow(/SESSION_TTL_DAYS/);
+    expect(() => loadEnv({ DATABASE_URL, SESSION_TTL_DAYS: '365' })).toThrow(/SESSION_TTL_DAYS/);
   });
 
   it('requires a postgres DATABASE_URL', () => {

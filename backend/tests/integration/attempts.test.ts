@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
-import { DEMO_QUIZ_ID, DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { DEMO_QUIZ_ID } from '../../src/database/seeds/data.js';
 import { AttemptRepository } from '../../src/modules/attempts/repository.js';
+import { asUser, buildTestApp, registerUser, type TestUser } from '../helpers/auth.js';
 import { createSeededTestDb } from '../helpers/test-db.js';
 
 const QUESTION_IDS = Array.from(
@@ -20,7 +20,7 @@ const body = (
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> => ({
   requestId: RID,
-  studentId: DEMO_STUDENT_ID,
+  studentId: user.studentId,
   quizId: DEMO_QUIZ_ID,
   answers: QUESTION_IDS.map((questionId, i) => ({ questionId, selectedOption: picks[i] })),
   ...overrides,
@@ -28,16 +28,20 @@ const body = (
 
 let ds: DataSource;
 let app: FastifyInstance;
+let user: TestUser;
+let client: ReturnType<typeof asUser>;
 
 const post = (payload: unknown) =>
-  app.inject({ method: 'POST', url: '/api/v1/attempts', payload: payload as object });
+  client.inject({ method: 'POST', url: '/api/v1/attempts', payload: payload as object });
 const count = async (table: string): Promise<number> =>
   Number((await ds.query<{ n: string }[]>(`SELECT count(*) n FROM ${table}`))[0]?.n);
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
-  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
+  app = buildTestApp({ dataSource: ds });
   await app.ready();
+  user = await registerUser(app);
+  client = asUser(app, user.token);
 });
 afterEach(async () => {
   await ds.query('DELETE FROM attempts');
@@ -150,7 +154,7 @@ describe('POST /api/v1/attempts', () => {
       expect(res.statusCode).toBe(400);
       expect(res.json().error.code).toBe('INVALID_REQUEST');
     }
-    const bad = await app.inject({
+    const bad = await client.inject({
       method: 'POST',
       url: '/api/v1/attempts',
       headers: { 'content-type': 'application/json' },
@@ -160,28 +164,38 @@ describe('POST /api/v1/attempts', () => {
     expect(await count('attempts')).toBe(0);
   });
 
-  it('CA-09: returns 403 for a student other than the demo student', async () => {
-    const res = await post(body(CORRECT, { studentId: '99999999-9999-4999-8999-999999999999' }));
+  it('CA-09: returns 403 when the body names another student than the authenticated one', async () => {
+    const other = await registerUser(app);
+    const res = await post(body(CORRECT, { studentId: other.studentId }));
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('FORBIDDEN');
     expect(await count('attempts')).toBe(0);
+
+    const unknown = await post(
+      body(CORRECT, { studentId: '99999999-9999-4999-8999-999999999999' }),
+    );
+    expect(unknown.statusCode).toBe(403);
   });
 
-  it('returns 404 for an unknown quiz and for a demo student missing from the database', async () => {
+  it('returns 404 for an unknown quiz', async () => {
     const quiz = await post(body(CORRECT, { quizId: '99999999-9999-4999-8999-999999999999' }));
     expect(quiz.statusCode).toBe(404);
     expect(quiz.json().error.code).toBe('QUIZ_NOT_FOUND');
+  });
 
-    const ghost = '88888888-8888-4888-8888-888888888888';
-    const other = buildApp({ dataSource: ds, demoStudentId: ghost });
-    const res = await other.inject({
+  it('each student only ever sees their own attempts (two users, same requestId)', async () => {
+    const other = await registerUser(app);
+    const otherClient = asUser(app, other.token);
+    const mine = await post(body(CORRECT));
+    const theirs = await otherClient.inject({
       method: 'POST',
       url: '/api/v1/attempts',
-      payload: body(CORRECT, { studentId: ghost }),
+      payload: body(WRONG, { studentId: other.studentId }),
     });
-    await other.close();
-    expect(res.statusCode).toBe(404);
-    expect(res.json().error.code).toBe('STUDENT_NOT_FOUND');
+    // The same requestId is independent per student: both are created, neither is a replay/conflict.
+    expect(mine.statusCode).toBe(201);
+    expect(theirs.statusCode).toBe(201);
+    expect(mine.json().attemptId).not.toBe(theirs.json().attemptId);
   });
 
   it('never returns the answer key outside of the post-submission response schema', async () => {
@@ -321,7 +335,7 @@ describe('transaction rollback (RN-04)', () => {
     };
     await expect(
       repo.createAttempt({
-        studentId: DEMO_STUDENT_ID,
+        studentId: user.studentId,
         quizId: DEMO_QUIZ_ID,
         requestId: RID,
         payloadHash: 'a'.repeat(64),

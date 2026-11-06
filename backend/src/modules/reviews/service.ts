@@ -1,5 +1,5 @@
 import { AppError, notFound } from '../../shared/errors/app-error.js';
-import { assertDemoStudent } from '../../shared/errors/guards.js';
+import { assertSameStudent } from '../../shared/errors/guards.js';
 import type { QuizRepository } from '../quizzes/repository.js';
 import { latestAnswerPerQuestion, selectReviewTopics } from '../recommendations/domain.js';
 import type { RecommendationRepository } from '../recommendations/repository.js';
@@ -12,15 +12,15 @@ export class ReviewService {
     private readonly recommendations: RecommendationRepository,
     private readonly reviews: ReviewRepository,
     private readonly quizzes: QuizRepository,
-    private readonly demoStudentId: string,
   ) {}
 
-  /** Check order: 403 student -> 404 student/topic -> 400 topic not in review. */
-  async createForTopic(studentId: string, topicId: string): Promise<ReviewQuizView> {
-    assertDemoStudent(studentId, this.demoStudentId);
-    if (!(await this.recommendations.studentExists(studentId))) {
-      throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
-    }
+  /** Check order: 403 student mismatch -> 404 topic -> 400 topic not in review. */
+  async createForTopic(
+    authStudentId: string,
+    studentId: string,
+    topicId: string,
+  ): Promise<ReviewQuizView> {
+    assertSameStudent(studentId, authStudentId);
     const topic = await this.reviews.findTopic(topicId);
     if (!topic) throw notFound('TOPIC_NOT_FOUND', 'Assunto não encontrado');
 

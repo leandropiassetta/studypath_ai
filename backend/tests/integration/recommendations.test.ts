@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
-import { DEMO_QUIZ_ID, DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { DEMO_QUIZ_ID } from '../../src/database/seeds/data.js';
+import { asUser, buildTestApp, registerUser, type TestUser } from '../helpers/auth.js';
 import { createSeededTestDb } from '../helpers/test-db.js';
 
 const QUESTION_IDS = Array.from(
@@ -19,27 +19,31 @@ const ALL_WRONG = CORRECT.map((c) => (c === 'A' ? 'B' : 'A'));
 
 let ds: DataSource;
 let app: FastifyInstance;
+let user: TestUser;
+let client: ReturnType<typeof asUser>;
 
 const submit = async (picks: string[]): Promise<void> => {
-  const res = await app.inject({
+  const res = await client.inject({
     method: 'POST',
     url: '/api/v1/attempts',
     payload: {
       requestId: randomUUID(),
-      studentId: DEMO_STUDENT_ID,
+      studentId: user.studentId,
       quizId: DEMO_QUIZ_ID,
       answers: QUESTION_IDS.map((questionId, i) => ({ questionId, selectedOption: picks[i] })),
     },
   });
   expect(res.statusCode).toBe(201);
 };
-const recs = (studentId = DEMO_STUDENT_ID) =>
-  app.inject({ method: 'GET', url: `/api/v1/students/${studentId}/recommendations` });
+const recs = (studentId = user.studentId) =>
+  client.inject({ method: 'GET', url: `/api/v1/students/${studentId}/recommendations` });
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
-  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
+  app = buildTestApp({ dataSource: ds });
   await app.ready();
+  user = await registerUser(app);
+  client = asUser(app, user.token);
 });
 afterEach(async () => {
   await ds.query('DELETE FROM attempts');
@@ -54,7 +58,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     const res = await recs();
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
-      studentId: DEMO_STUDENT_ID,
+      studentId: user.studentId,
       status: 'NO_HISTORY',
       evaluatedAttempts: 0,
       progress: [],
@@ -138,7 +142,7 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     const [{ id }] = await ds.query(
       `INSERT INTO attempts (student_id, quiz_id, request_id, payload_hash, correct_count, total_count, score_pct, submitted_at)
        VALUES ($1, $2, gen_random_uuid(), repeat('b', 64), 0, 3, 0, '2026-01-01T00:00:00Z') RETURNING id`,
-      [DEMO_STUDENT_ID, DEMO_QUIZ_ID],
+      [user.studentId, DEMO_QUIZ_ID],
     );
     await ds.query(
       `INSERT INTO attempt_answers (attempt_id, question_id, selected_option, is_correct)
@@ -206,23 +210,32 @@ describe('GET /api/v1/students/:studentId/recommendations', () => {
     expect(out.progress.every((p: { scorePct: number }) => p.scorePct === 100)).toBe(true);
   });
 
-  it('CA-09: returns 403 for another student', async () => {
-    const res = await recs('99999999-9999-4999-8999-999999999999');
-    expect(res.statusCode).toBe(403);
-    expect(res.json().error.code).toBe('FORBIDDEN');
+  it('CA-09: returns 403 for another student (even one that exists)', async () => {
+    const other = await registerUser(app);
+    for (const id of [other.studentId, '99999999-9999-4999-8999-999999999999']) {
+      const res = await recs(id);
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error.code).toBe('FORBIDDEN');
+    }
   });
 
-  it('returns 400 for a malformed id and 404 when the demo student is missing', async () => {
+  it('returns 400 for a malformed student id', async () => {
     expect((await recs('not-a-uuid')).statusCode).toBe(400);
+  });
 
-    const ghost = '88888888-8888-4888-8888-888888888888';
-    const other = buildApp({ dataSource: ds, demoStudentId: ghost });
-    const res = await other.inject({
-      method: 'GET',
-      url: `/api/v1/students/${ghost}/recommendations`,
-    });
-    await other.close();
-    expect(res.statusCode).toBe(404);
+  it("two students never see each other's history", async () => {
+    const other = await registerUser(app);
+    const otherClient = asUser(app, other.token);
+    await submit(EQ_1_OF_4); // only the first user answers
+    const mine = (await recs()).json();
+    const theirs = (
+      await otherClient.inject({
+        method: 'GET',
+        url: `/api/v1/students/${other.studentId}/recommendations`,
+      })
+    ).json();
+    expect(mine.status).toBe('NEEDS_REVIEW');
+    expect(theirs).toMatchObject({ status: 'NO_HISTORY', evaluatedAttempts: 0, topics: [] });
   });
 
   it('reflects newly recorded answers', async () => {

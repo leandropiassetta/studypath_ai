@@ -10,7 +10,6 @@ const TOPIC = 'topic-1';
 
 const recs = (unanswered: unknown[] = []) =>
   ({
-    studentExists: async () => true,
     history: async () => ({
       attempts: [{ id: 'a1', submittedAt: new Date(), scorePct: 0, kind: 'standard' }],
       answers: [
@@ -33,15 +32,15 @@ const quizzes = { findActiveBySlug: async () => null } as unknown as QuizReposit
 describe('ReviewService edge cases', () => {
   it('refuses to create an empty quiz when no question can be selected', async () => {
     // Inconsistent data: the topic needs review, but its wrong questions cannot be loaded.
-    const svc = new ReviewService(recs([]), reviews([]), quizzes, DEMO);
-    const err = await svc.createForTopic(DEMO, TOPIC).catch((e: unknown) => e);
+    const svc = new ReviewService(recs([]), reviews([]), quizzes);
+    const err = await svc.createForTopic(DEMO, DEMO, TOPIC).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AppError);
     expect(err).toMatchObject({ statusCode: 400, code: 'NOTHING_TO_PRACTICE' });
   });
 
-  it('rejects any student other than the demo one before touching the database', async () => {
-    const svc = new ReviewService(recs(), reviews([]), quizzes, DEMO);
-    await expect(svc.createForTopic('someone-else', TOPIC)).rejects.toMatchObject({
+  it('rejects a student id that is not the authenticated one before touching the database', async () => {
+    const svc = new ReviewService(recs(), reviews([]), quizzes);
+    await expect(svc.createForTopic(DEMO, 'someone-else', TOPIC)).rejects.toMatchObject({
       statusCode: 403,
     });
   });

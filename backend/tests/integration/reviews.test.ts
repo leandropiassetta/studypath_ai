@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
-import { DEMO_QUIZ_ID, DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { DEMO_QUIZ_ID } from '../../src/database/seeds/data.js';
+import { asUser, buildTestApp, registerUser, type TestUser } from '../helpers/auth.js';
 import { createSeededTestDb } from '../helpers/test-db.js';
 
 const QUIZ_QUESTION_IDS = Array.from(
@@ -17,6 +17,8 @@ const EQ_1_OF_4 = ['B', 'A', 'A', 'A', 'B', 'C', 'B', 'A']; // Equações 1/4, G
 
 let ds: DataSource;
 let app: FastifyInstance;
+let user: TestUser;
+let client: ReturnType<typeof asUser>;
 
 interface ReviewQuiz {
   id: string;
@@ -29,27 +31,30 @@ interface ReviewQuiz {
 }
 
 const submitFull = async (picks: string[]): Promise<void> => {
-  const res = await app.inject({
+  const res = await client.inject({
     method: 'POST',
     url: '/api/v1/attempts',
     payload: {
       requestId: randomUUID(),
-      studentId: DEMO_STUDENT_ID,
+      studentId: user.studentId,
       quizId: DEMO_QUIZ_ID,
       answers: QUIZ_QUESTION_IDS.map((questionId, i) => ({ questionId, selectedOption: picks[i] })),
     },
   });
   expect(res.statusCode).toBe(201);
 };
-const review = (topicId: string, studentId = DEMO_STUDENT_ID) =>
-  app.inject({
+const review = (topicId: string, studentId = user.studentId) =>
+  client.inject({
     method: 'POST',
     url: `/api/v1/students/${studentId}/review-quizzes`,
     payload: { topicId },
   });
 const recs = async () =>
   (
-    await app.inject({ method: 'GET', url: `/api/v1/students/${DEMO_STUDENT_ID}/recommendations` })
+    await client.inject({
+      method: 'GET',
+      url: `/api/v1/students/${user.studentId}/recommendations`,
+    })
   ).json();
 const count = async (sql: string): Promise<number> =>
   Number((await ds.query<{ n: string }[]>(sql))[0]?.n);
@@ -59,7 +64,7 @@ const answerExtras = async (topicId: string, limit: number): Promise<void> => {
   const [{ id }] = await ds.query(
     `INSERT INTO attempts (student_id, quiz_id, request_id, payload_hash, correct_count, total_count, score_pct, submitted_at)
      VALUES ($1, $2, gen_random_uuid(), repeat('d', 64), 0, 1, 0, '2026-01-01T00:00:00Z') RETURNING id`,
-    [DEMO_STUDENT_ID, DEMO_QUIZ_ID],
+    [user.studentId, DEMO_QUIZ_ID],
   );
   await ds.query(
     `INSERT INTO attempt_answers (attempt_id, question_id, selected_option, is_correct)
@@ -72,8 +77,10 @@ const answerExtras = async (topicId: string, limit: number): Promise<void> => {
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
-  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
+  app = buildTestApp({ dataSource: ds });
   await app.ready();
+  user = await registerUser(app);
+  client = asUser(app, user.token);
 });
 afterEach(async () => {
   await ds.query('DELETE FROM attempts');
@@ -120,16 +127,16 @@ describe('POST /api/v1/students/:studentId/review-quizzes', () => {
     await submitFull(EQ_1_OF_4);
     const quiz = (await review(EQ)).json() as ReviewQuiz;
 
-    const get = await app.inject({ method: 'GET', url: `/api/v1/quizzes/${quiz.slug}` });
+    const get = await client.inject({ method: 'GET', url: `/api/v1/quizzes/${quiz.slug}` });
     expect(get.statusCode).toBe(200);
     expect(get.json().kind).toBe('review');
 
-    const post = await app.inject({
+    const post = await client.inject({
       method: 'POST',
       url: '/api/v1/attempts',
       payload: {
         requestId: randomUUID(),
-        studentId: DEMO_STUDENT_ID,
+        studentId: user.studentId,
         quizId: quiz.id,
         answers: quiz.questions.map((x) => ({ questionId: x.id, selectedOption: 'A' })),
       },
@@ -148,10 +155,10 @@ describe('POST /api/v1/students/:studentId/review-quizzes', () => {
       [quiz.questions.map((x) => x.id)],
     );
     const answers = keys.map((k) => ({ questionId: k.id, selectedOption: k.correct_option }));
-    const post = await app.inject({
+    const post = await client.inject({
       method: 'POST',
       url: '/api/v1/attempts',
-      payload: { requestId: randomUUID(), studentId: DEMO_STUDENT_ID, quizId: quiz.id, answers },
+      payload: { requestId: randomUUID(), studentId: user.studentId, quizId: quiz.id, answers },
     });
     expect(post.json()).toMatchObject({ correctCount: 3, scorePct: 100 });
 
@@ -199,10 +206,12 @@ describe('POST /api/v1/students/:studentId/review-quizzes', () => {
     expect((await review(EQ)).json().error.code).toBe('TOPIC_NOT_IN_REVIEW');
 
     expect((await review(randomUUID())).json().error.code).toBe('TOPIC_NOT_FOUND');
+    const other = await registerUser(app);
+    expect((await review(EQ, other.studentId)).statusCode).toBe(403);
     expect((await review(EQ, '99999999-9999-4999-8999-999999999999')).statusCode).toBe(403);
-    const bad = await app.inject({
+    const bad = await client.inject({
       method: 'POST',
-      url: `/api/v1/students/${DEMO_STUDENT_ID}/review-quizzes`,
+      url: `/api/v1/students/${user.studentId}/review-quizzes`,
       payload: { topicId: 'nope' },
     });
     expect(bad.statusCode).toBe(400);

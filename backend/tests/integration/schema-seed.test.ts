@@ -24,7 +24,7 @@ const count = async (sql: string): Promise<number> =>
   Number((await ds.query<{ n: string }[]>(sql))[0]?.n);
 
 describe('schema', () => {
-  it('creates the 7 core tables', async () => {
+  it('creates the 7 core tables plus sessions', async () => {
     const rows = await ds.query<{ table_name: string }[]>(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name <> 'migrations' ORDER BY table_name`,
@@ -35,6 +35,7 @@ describe('schema', () => {
       'questions',
       'quiz_questions',
       'quizzes',
+      'sessions',
       'students',
       'topics',
     ]);

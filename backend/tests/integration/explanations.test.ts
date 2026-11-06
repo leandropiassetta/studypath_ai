@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
-import { DEMO_QUIZ_ID, DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { DEMO_QUIZ_ID } from '../../src/database/seeds/data.js';
 import { MockExplanationProvider } from '../../src/modules/ai/providers/mock.js';
 import type { ExplanationProvider } from '../../src/modules/ai/providers/types.js';
+import { bearer, buildTestApp, registerUser, type TestUser } from '../helpers/auth.js';
 import { createSeededTestDb } from '../helpers/test-db.js';
 
 const QUESTION_IDS = Array.from(
@@ -16,12 +16,12 @@ const QUESTION_IDS = Array.from(
 const PICKS = ['B', 'A', 'C', 'C', 'B', 'C', 'B', 'A']; // wrong: q2 and q8
 
 let ds: DataSource;
+let user: TestUser;
 const apps: FastifyInstance[] = [];
 
 const appWith = (provider: ExplanationProvider | null, aiTimeoutMs = 200): FastifyInstance => {
-  const app = buildApp({
+  const app = buildTestApp({
     dataSource: ds,
-    demoStudentId: DEMO_STUDENT_ID,
     explanationProvider: provider,
     aiTimeoutMs,
   });
@@ -29,13 +29,14 @@ const appWith = (provider: ExplanationProvider | null, aiTimeoutMs = 200): Fasti
   return app;
 };
 
-const submit = async (app: FastifyInstance): Promise<string> => {
+const submit = async (app: FastifyInstance, as: TestUser = user): Promise<string> => {
   const res = await app.inject({
     method: 'POST',
     url: '/api/v1/attempts',
+    headers: bearer(as.token),
     payload: {
       requestId: randomUUID(),
-      studentId: DEMO_STUDENT_ID,
+      studentId: as.studentId,
       quizId: DEMO_QUIZ_ID,
       answers: QUESTION_IDS.map((questionId, i) => ({ questionId, selectedOption: PICKS[i] })),
     },
@@ -43,15 +44,26 @@ const submit = async (app: FastifyInstance): Promise<string> => {
   expect(res.statusCode).toBe(201);
   return res.json().attemptId as string;
 };
-const explain = (app: FastifyInstance, attemptId: string, questionId: string) =>
+const explain = (
+  app: FastifyInstance,
+  attemptId: string,
+  questionId: string,
+  as: TestUser | null = user,
+) =>
   app.inject({
     method: 'POST',
     url: `/api/v1/attempts/${attemptId}/explanations`,
+    headers: as ? bearer(as.token) : {},
     payload: { questionId },
   });
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
+  // Sessions live in the database, so this user's token works with every app built below.
+  const bootstrap = buildTestApp({ dataSource: ds });
+  apps.push(bootstrap);
+  await bootstrap.ready();
+  user = await registerUser(bootstrap);
 });
 afterEach(async () => {
   await ds.query('DELETE FROM attempts');
@@ -117,7 +129,8 @@ describe('POST /api/v1/attempts/:attemptId/explanations', () => {
       recs: (
         await app.inject({
           method: 'GET',
-          url: `/api/v1/students/${DEMO_STUDENT_ID}/recommendations`,
+          url: `/api/v1/students/${user.studentId}/recommendations`,
+          headers: bearer(user.token),
         })
       ).json(),
     });
@@ -134,9 +147,8 @@ describe('POST /api/v1/attempts/:attemptId/explanations', () => {
         return { explanation: `texto ${calls}` };
       },
     };
-    const app = buildApp({
+    const app = buildTestApp({
       dataSource: ds,
-      demoStudentId: DEMO_STUDENT_ID,
       explanationProvider: provider,
       aiTimeoutMs: 500,
       aiLimits: { perMinute: 1, perDay: 50 },
@@ -179,25 +191,24 @@ describe('POST /api/v1/attempts/:attemptId/explanations', () => {
     expect(outside.json().error.code).toBe('QUESTION_NOT_FOUND');
   });
 
-  it('returns 403 for an attempt that belongs to another student', async () => {
+  it("returns 404 for another student's attempt, and the owner can still use it", async () => {
     const app = appWith(new MockExplanationProvider());
-    const other = '77777777-7777-4777-8777-777777777777';
-    await ds.query(`INSERT INTO students (id, name) VALUES ($1, 'Outro') ON CONFLICT DO NOTHING`, [
-      other,
-    ]);
-    const [{ id }] = await ds.query(
-      `INSERT INTO attempts (student_id, quiz_id, request_id, payload_hash, correct_count, total_count, score_pct)
-       VALUES ($1, $2, gen_random_uuid(), repeat('c', 64), 0, 1, 0) RETURNING id`,
-      [other, DEMO_QUIZ_ID],
-    );
-    await ds.query(
-      `INSERT INTO attempt_answers (attempt_id, question_id, selected_option, is_correct) VALUES ($1, $2, 'A', false)`,
-      [id, QUESTION_IDS[1]],
-    );
-    const res = await explain(app, id, QUESTION_IDS[1]!);
-    expect(res.statusCode).toBe(403);
-    await ds.query(`DELETE FROM attempts`);
-    await ds.query(`DELETE FROM students WHERE id = $1`, [other]);
+    const other = await registerUser(app);
+    const otherAttempt = await submit(app, other);
+
+    const res = await explain(app, otherAttempt, QUESTION_IDS[1]!); // `user` asks for it
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('ATTEMPT_NOT_FOUND'); // existence is not revealed
+
+    const own = await explain(app, otherAttempt, QUESTION_IDS[1]!, other);
+    expect(own.statusCode).toBe(200);
+  });
+
+  it('requires authentication', async () => {
+    const app = appWith(new MockExplanationProvider());
+    const attemptId = await submit(app);
+    const res = await explain(app, attemptId, QUESTION_IDS[1]!, null);
+    expect(res.statusCode).toBe(401);
   });
 
   it('returns 400 for malformed input', async () => {
@@ -205,11 +216,13 @@ describe('POST /api/v1/attempts/:attemptId/explanations', () => {
     const bad1 = await app.inject({
       method: 'POST',
       url: '/api/v1/attempts/not-a-uuid/explanations',
+      headers: bearer(user.token),
       payload: { questionId: QUESTION_IDS[1] },
     });
     const bad2 = await app.inject({
       method: 'POST',
       url: `/api/v1/attempts/${randomUUID()}/explanations`,
+      headers: bearer(user.token),
       payload: { questionId: 'x' },
     });
     expect(bad1.statusCode).toBe(400);

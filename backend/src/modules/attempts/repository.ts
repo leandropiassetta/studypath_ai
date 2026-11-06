@@ -1,5 +1,5 @@
 import type { DataSource } from 'typeorm';
-import { Attempt, AttemptAnswer, Quiz, Student } from '../../database/entities/index.js';
+import { Attempt, AttemptAnswer, Quiz } from '../../database/entities/index.js';
 import type { GradedAttempt, QuestionKey, SubmittedAnswer } from './domain.js';
 
 interface KeyRow {
@@ -40,10 +40,6 @@ const isDuplicateRequest = (err: unknown): boolean => {
 
 export class AttemptRepository {
   constructor(private readonly ds: DataSource) {}
-
-  studentExists(id: string): Promise<boolean> {
-    return this.ds.getRepository(Student).existsBy({ id });
-  }
 
   quizIsActive(id: string): Promise<boolean> {
     return this.ds.getRepository(Quiz).existsBy({ id, isActive: true });

@@ -1,24 +1,25 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
 import { createDataSource } from '../../src/database/data-source.js';
-import { DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { asUser, buildTestApp, registerUser } from '../helpers/auth.js';
 import { createSeededTestDb, TEST_DATABASE_URL } from '../helpers/test-db.js';
 
 let ds: DataSource;
 let app: FastifyInstance;
+let client: ReturnType<typeof asUser>;
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
   await ds.query(
     `INSERT INTO quizzes (slug, title, is_active) VALUES ('inativo', 'Simulado inativo', false)`,
   );
-  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
+  app = buildTestApp({ dataSource: ds });
   app.get('/__boom', () => {
     throw new Error('secret database detail');
   });
   await app.ready();
+  client = asUser(app, (await registerUser(app)).token);
 });
 
 afterAll(async () => {
@@ -28,7 +29,7 @@ afterAll(async () => {
 
 describe('GET /api/v1/quizzes/:slug', () => {
   it('CA-01: returns 8 ordered questions without the answer key', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/v1/quizzes/demo-matematica' });
+    const res = await client.inject({ method: 'GET', url: '/api/v1/quizzes/demo-matematica' });
     expect(res.statusCode).toBe(200);
     const quiz = res.json();
     expect(quiz.slug).toBe('demo-matematica');
@@ -54,7 +55,7 @@ describe('GET /api/v1/quizzes/:slug', () => {
   });
 
   it('returns 404 for an unknown quiz', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/v1/quizzes/nao-existe' });
+    const res = await client.inject({ method: 'GET', url: '/api/v1/quizzes/nao-existe' });
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
       error: { code: 'QUIZ_NOT_FOUND', message: 'Simulado não encontrado', details: [] },
@@ -62,12 +63,12 @@ describe('GET /api/v1/quizzes/:slug', () => {
   });
 
   it('returns 404 for an inactive quiz', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/v1/quizzes/inativo' });
+    const res = await client.inject({ method: 'GET', url: '/api/v1/quizzes/inativo' });
     expect(res.statusCode).toBe(404);
   });
 
   it('returns 400 for a malformed slug', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/v1/quizzes/Slug%20Inv%C3%A1lido' });
+    const res = await client.inject({ method: 'GET', url: '/api/v1/quizzes/Slug%20Inv%C3%A1lido' });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe('INVALID_REQUEST');
   });
@@ -75,7 +76,7 @@ describe('GET /api/v1/quizzes/:slug', () => {
 
 describe('response hardening', () => {
   it('sends nosniff everywhere and no-store on API responses', async () => {
-    const api = await app.inject({ method: 'GET', url: '/api/v1/quizzes/demo-matematica' });
+    const api = await client.inject({ method: 'GET', url: '/api/v1/quizzes/demo-matematica' });
     expect(api.headers['x-content-type-options']).toBe('nosniff');
     expect(api.headers['cache-control']).toBe('no-store');
     const health = await app.inject({ method: 'GET', url: '/health' });
@@ -84,7 +85,7 @@ describe('response hardening', () => {
 
   it('rejects oversized request bodies with a client error', async () => {
     const huge = { requestId: 'x'.repeat(100_000) };
-    const res = await app.inject({ method: 'POST', url: '/api/v1/attempts', payload: huge });
+    const res = await client.inject({ method: 'POST', url: '/api/v1/attempts', payload: huge });
     expect(res.statusCode).toBe(413);
     expect(res.json().error.code).toBe('INVALID_REQUEST');
   });
@@ -118,7 +119,7 @@ describe('GET /health', () => {
     const closed = createDataSource(TEST_DATABASE_URL);
     await closed.initialize();
     await closed.destroy();
-    const downApp = buildApp({ dataSource: closed, demoStudentId: DEMO_STUDENT_ID });
+    const downApp = buildTestApp({ dataSource: closed });
     const res = await downApp.inject({ method: 'GET', url: '/health' });
     await downApp.close();
     expect(res.statusCode).toBe(503);

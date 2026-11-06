@@ -10,15 +10,32 @@ import {
   validateSeedQuestion,
 } from './data.js';
 
+export interface SeedOptions {
+  /** Optional login for the demo student; omitted = the demo student cannot log in. */
+  demoCredentials?: { email: string; passwordHash: string };
+}
+
 /** Idempotent: safe to run repeatedly; never touches attempts. All data is fictional. */
-export async function seed(ds: DataSource): Promise<void> {
+export async function seed(ds: DataSource, options: SeedOptions = {}): Promise<void> {
   const questions = buildSeedQuestions();
   const problems = questions.flatMap(validateSeedQuestion);
   if (problems.length > 0) throw new Error(`Invalid seed data: ${problems.join('; ')}`);
 
   const createdAt = new Date(Date.UTC(2026, 0, 1));
   await ds.transaction(async (m) => {
-    await m.upsert(Student, { id: DEMO_STUDENT_ID, name: 'Aluno Demo', createdAt }, ['id']);
+    await m.upsert(
+      Student,
+      {
+        id: DEMO_STUDENT_ID,
+        name: 'Aluno Demo',
+        createdAt,
+        ...(options.demoCredentials && {
+          email: options.demoCredentials.email,
+          passwordHash: options.demoCredentials.passwordHash,
+        }),
+      },
+      ['id'],
+    );
     await m.upsert(
       Topic,
       [

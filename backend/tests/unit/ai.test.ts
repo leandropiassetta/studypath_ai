@@ -201,12 +201,12 @@ describe('ExplanationService fallback (tests 21, 22, 23)', () => {
     }),
   } as unknown as ExplanationRepository;
   const make = (provider: ExplanationProvider | null, timeoutMs = 50): ExplanationService =>
-    new ExplanationService(repo, DEMO, provider, timeoutMs);
+    new ExplanationService(repo, provider, timeoutMs);
   const reference = { questionId: 'q', explanation: 'Subtraia 2.', source: 'reference' };
 
   it('returns the LLM text when output is valid', async () => {
     const svc = make({ explain: async () => ({ explanation: 'Texto do modelo' }) });
-    expect(await svc.explain('a', 'q', log)).toEqual({
+    expect(await svc.explain(DEMO, 'a', 'q', log)).toEqual({
       questionId: 'q',
       explanation: 'Texto do modelo',
       source: 'llm',
@@ -216,7 +216,7 @@ describe('ExplanationService fallback (tests 21, 22, 23)', () => {
   it('falls back on timeout even if the provider ignores the abort signal', async () => {
     const svc = make({ explain: () => new Promise(() => undefined) }, 30);
     const started = Date.now();
-    expect(await svc.explain('a', 'q', log)).toEqual(reference);
+    expect(await svc.explain(DEMO, 'a', 'q', log)).toEqual(reference);
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
@@ -234,19 +234,25 @@ describe('ExplanationService fallback (tests 21, 22, 23)', () => {
       },
       30,
     );
-    expect(await svc.explain('a', 'q', log)).toEqual(reference);
+    expect(await svc.explain(DEMO, 'a', 'q', log)).toEqual(reference);
     expect(aborted).toBe(true);
   });
 
   it('falls back on provider errors and invalid output', async () => {
     expect(
-      await make({ explain: async () => Promise.reject(new Error('boom')) }).explain('a', 'q', log),
+      await make({ explain: async () => Promise.reject(new Error('boom')) }).explain(
+        DEMO,
+        'a',
+        'q',
+        log,
+      ),
     ).toEqual(reference);
-    expect(await make({ explain: async () => 'not json' }).explain('a', 'q', log)).toEqual(
+    expect(await make({ explain: async () => 'not json' }).explain(DEMO, 'a', 'q', log)).toEqual(
       reference,
     );
     expect(
       await make({ explain: async () => ({ explanation: 'x', score: 100 }) }).explain(
+        DEMO,
         'a',
         'q',
         log,
@@ -255,6 +261,6 @@ describe('ExplanationService fallback (tests 21, 22, 23)', () => {
   });
 
   it('uses the reference when AI is disabled', async () => {
-    expect(await make(null).explain('a', 'q', log)).toEqual(reference);
+    expect(await make(null).explain(DEMO, 'a', 'q', log)).toEqual(reference);
   });
 });

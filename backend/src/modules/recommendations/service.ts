@@ -1,5 +1,4 @@
-import { notFound } from '../../shared/errors/app-error.js';
-import { assertDemoStudent } from '../../shared/errors/guards.js';
+import { assertSameStudent } from '../../shared/errors/guards.js';
 import {
   RECENT_ATTEMPTS_WINDOW,
   buildProgress,
@@ -15,16 +14,10 @@ const NO_NEW_QUESTIONS_MESSAGE =
   'Não há exercícios novos para este assunto. Revise as questões já respondidas e as explicações.';
 
 export class RecommendationService {
-  constructor(
-    private readonly repo: RecommendationRepository,
-    private readonly demoStudentId: string,
-  ) {}
+  constructor(private readonly repo: RecommendationRepository) {}
 
-  async getFor(studentId: string): Promise<RecommendationsView> {
-    assertDemoStudent(studentId, this.demoStudentId);
-    if (!(await this.repo.studentExists(studentId))) {
-      throw notFound('STUDENT_NOT_FOUND', 'Aluno não encontrado');
-    }
+  async getFor(authStudentId: string, studentId: string): Promise<RecommendationsView> {
+    assertSameStudent(studentId, authStudentId);
 
     const history = await this.repo.history(studentId);
     // Priority uses the CURRENT state (latest answer per question, any quiz). Progress shows the

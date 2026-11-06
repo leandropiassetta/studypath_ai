@@ -16,6 +16,7 @@ const EnvSchema = Type.Object({
   LLM_PROVIDER: Type.Union([Type.Literal('anthropic'), Type.Literal('openai')], {
     default: 'anthropic',
   }),
+  SESSION_TTL_DAYS: Type.Integer({ minimum: 1, maximum: 90, default: 7 }),
   AI_MAX_CALLS_PER_MINUTE: Type.Integer({ minimum: 1, maximum: 1000, default: 6 }),
   AI_MAX_CALLS_PER_DAY: Type.Integer({ minimum: 1, maximum: 100000, default: 50 }),
   AI_TIMEOUT_MS: Type.Integer({ minimum: 100, maximum: 60000, default: 8000 }),
@@ -43,6 +44,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       source.AI_TIMEOUT_MS === undefined || source.AI_TIMEOUT_MS === ''
         ? undefined
         : Number(source.AI_TIMEOUT_MS),
+    SESSION_TTL_DAYS: numberOrUndefined(source.SESSION_TTL_DAYS),
     AI_MAX_CALLS_PER_MINUTE: numberOrUndefined(source.AI_MAX_CALLS_PER_MINUTE),
     AI_MAX_CALLS_PER_DAY: numberOrUndefined(source.AI_MAX_CALLS_PER_DAY),
     LLM_PROVIDER: source.LLM_PROVIDER || undefined,
@@ -61,8 +63,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (!isLoopbackHost(withDefaults.HOST) && source.ALLOW_NON_LOOPBACK_HOST !== 'true') {
     throw new Error(
-      'Invalid environment: HOST is not a loopback address. This demo API has no real ' +
-        'authentication; set ALLOW_NON_LOOPBACK_HOST=true only if you accept exposing it.',
+      'Invalid environment: HOST is not a loopback address. The API speaks plain HTTP (no TLS); ' +
+        'set ALLOW_NON_LOOPBACK_HOST=true only behind a TLS-terminating proxy you control.',
     );
   }
   return withDefaults;

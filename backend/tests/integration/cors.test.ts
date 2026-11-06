@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
-import { buildApp } from '../../src/app.js';
-import { DEMO_STUDENT_ID } from '../../src/database/seeds/data.js';
+import { buildTestApp } from '../helpers/auth.js';
 import { createSeededTestDb } from '../helpers/test-db.js';
 
 let ds: DataSource;
@@ -10,7 +9,7 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   ds = await createSeededTestDb();
-  app = buildApp({ dataSource: ds, demoStudentId: DEMO_STUDENT_ID });
+  app = buildTestApp({ dataSource: ds });
   await app.ready();
 });
 afterAll(async () => {
@@ -28,6 +27,8 @@ describe('CORS (loopback only)', () => {
     expect(res.statusCode).toBe(204);
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5555');
     expect(res.headers['access-control-allow-methods']).toContain('POST');
+    // The app sends the bearer token in this header, so the preflight must allow it.
+    expect(res.headers['access-control-allow-headers']).toContain('authorization');
   });
 
   it('adds the allow-origin header on normal responses', async () => {

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Static } from '@sinclair/typebox';
+import { getAuth } from '../../shared/http/auth.js';
 import type { ExplanationService } from './service.js';
 import {
   ExplanationBody,
@@ -20,6 +21,7 @@ export const explanationRoutes =
           response: { 200: ExplanationResponse },
         },
       },
-      (req) => service.explain(req.params.attemptId, req.body.questionId, req.log),
+      (req) =>
+        service.explain(getAuth(req).studentId, req.params.attemptId, req.body.questionId, req.log),
     );
   };

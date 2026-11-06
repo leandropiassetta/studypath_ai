@@ -1,6 +1,5 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { AppError, notFound } from '../../shared/errors/app-error.js';
-import { assertDemoStudent } from '../../shared/errors/guards.js';
 import type { ExplanationInput, ExplanationProvider } from './providers/types.js';
 import type { ExplanationRepository } from './repository.js';
 import type { ExplanationView } from './schemas.js';
@@ -44,7 +43,6 @@ export class ExplanationService {
 
   constructor(
     private readonly repo: ExplanationRepository,
-    private readonly demoStudentId: string,
     private readonly provider: ExplanationProvider | null,
     private readonly timeoutMs: number,
     limits: UsageLimits = DEFAULT_USAGE_LIMITS,
@@ -56,6 +54,7 @@ export class ExplanationService {
 
   /** RN-11: the LLM only produces text. Any failure or limit falls back to the reference text. */
   async explain(
+    authStudentId: string,
     attemptId: string,
     questionId: string,
     log: FastifyBaseLogger,
@@ -65,7 +64,9 @@ export class ExplanationService {
       throw notFound('ATTEMPT_NOT_FOUND', 'Tentativa não encontrada');
 
     const studentId = lookup.found === 'answer' ? lookup.context.studentId : lookup.studentId;
-    assertDemoStudent(studentId, this.demoStudentId);
+    // Someone else's attempt is reported as not found, so ids cannot be probed.
+    if (studentId !== authStudentId)
+      throw notFound('ATTEMPT_NOT_FOUND', 'Tentativa não encontrada');
     if (lookup.found === 'no-answer') {
       throw notFound('QUESTION_NOT_FOUND', 'Questão não encontrada nesta tentativa');
     }
